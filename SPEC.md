@@ -106,12 +106,20 @@ def ask(prompt: str, model: str | None, timeout_s: int, max_chars: int) -> dict:
 
 ### 4.1 各 CLI 的非互動呼叫方式（2026-08-03 實測）
 
-| id | 指令 | 指定模型 | 唯讀/限制 |
-|---|---|---|---|
-| `claude` | `claude -p <prompt> --output-format stream-json` | `--model` | 以 permission mode 限制工具 |
-| `codex` | `codex exec --json <prompt>` | `-m` | 以 sandbox 設定限制 |
-| `gemini` | `gemini -p <prompt> -o json` | `-m` | `--approval-mode plan`（唯讀） |
-| `opencode` | `opencode run --format json <prompt>` | `-m`（`provider/model`） | `--dir` 圈住工作目錄 |
+| id | 指令 | 指定模型 | 唯讀／限制 | 回覆文字在哪 |
+|---|---|---|---|---|
+| `claude` | `claude -p <prompt> --output-format json --tools ""` | `--model` | `--tools ""` 停用全部內建工具 | JSON 的 `result` |
+| `codex` | `codex exec --sandbox read-only --skip-git-repo-check --output-last-message <檔案> <prompt>` | `-m` | `--sandbox read-only`，`-C` 圈住目錄 | 該檔案的純文字 |
+| `gemini` | `gemini -p <prompt> -o json --approval-mode plan --skip-trust` | `-m` | `--approval-mode plan` | JSON 的 `response` |
+| `opencode` | `opencode run --format json <prompt>` | `-m`（`provider/model`） | `--dir` 圈住工作目錄 | 事件流中 `type=="text"` |
+
+2026-08-03 **實機呼叫**四家各一次驗證上表；真實輸出樣本存於 `tests/fixtures/`，
+擷取過程中發現的坑記於該目錄的 `README.md`，實作前必讀。其中兩點會直接讓呼叫失敗：
+
+- **stdin 必須導向 `/dev/null`**（四家皆會讀 stdin）。未導向時 `claude` 會卡住，
+  實測單次呼叫由 9.9 秒暴增為 176 秒後才被強制終止。
+- **`gemini` 必須同時給 `--skip-trust`**，否則在不受信任的目錄會以 exit 55 中止，
+  且 `--approval-mode plan` 會被**無聲**改回 `default`——唯讀保證會在使用者不知情下失效。
 
 ⚠️ **這些旗標是 2026-08-03 當天的事實，不是永久契約。** CLI 改版會變。
 adapter 必須在 `detect()` 取得版本，並在 `ask()` 失敗時回傳可讀的錯誤，
@@ -137,6 +145,12 @@ adapter 必須在 `detect()` 取得版本，並在 `ask()` 失敗時回傳可讀
 3. **輪數硬上限**（預設 5 輪）。達上限後只剩「叫仲裁者」或「明確確認再開一輪」兩條路。
 4. **逾時強制終止**（`timeout_s`，預設 120 秒）。子行程逾時即 kill，該顧問本輪記為
    「未回應」，討論繼續，不整場卡死。
+
+   ⚠️ **預設值 120 秒待調整（2026-08-03 實測發現）**：`gemini` 遇到 503 會**自行重試並退避**，
+   實測一次成功的呼叫因兩次重試而耗時 **119.5 秒**，差 0.5 秒就會被這道邊界砍掉，
+   而且會被誤記為「未回應」。證據見 `tests/fixtures/gemini_success.json` 的
+   `stats.models.*.api`（`totalRequests: 3`、`totalErrors: 2`）。
+   本項屬停止邊界，改動需求方裁示，**尚未變更**。
 5. **收斂偵測**：每位顧問回覆結尾必須輸出一行
    `[立場: 同意|保留|反對] [補充: 有|無]`。
    全體皆「補充: 無」時，UI 提示可以收斂了。
