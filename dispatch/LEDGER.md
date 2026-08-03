@@ -231,3 +231,13 @@
 - 派工後工作區變更：
   - `?? src/engine/`
   - `?? tests/test_engine_state.py`
+
+## 2026-08-04 01:43 · 015-status-field-tests.md
+
+- 模式：接續 ses_0374e95c6ffezWPwpB6kVsmZxX
+- session：`ses_0374e95c6ffezWPwpB6kVsmZxX`
+- 派工前 HEAD：`ea68b5a8dcf2c37b53eaa56724f12d96b3fa9b01`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M tests/test_engine_state.py`
+  - `?? dispatch/packages/015-status-field-tests.md`

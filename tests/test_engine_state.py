@@ -335,5 +335,53 @@ class StateMachineRulesTest(unittest.TestCase):
         self.assertEqual(d.status()["rounds_completed"], 1)
 
 
+class StatusFieldsTest(unittest.TestCase):
+    def _run_round(self, d, a1_text, a2_text):
+        d.begin_round()
+        d.record_speech("a1", ok_result(text=a1_text))
+        d.record_speech("a2", ok_result(text=a2_text))
+        d.end_round()
+
+    def test_format_violations_accumulate_across_rounds(self):
+        d = state.Discussion("q", make_seats())
+        self._run_round(d, "沒有結尾標記", "[立場: 同意] [補充: 無]")
+        self.assertEqual(d.status()["format_violations"], 1)
+        d.request_next_round()
+        self._run_round(d, "又是沒有結尾標記", "[立場: 同意] [補充: 無]")
+        self.assertEqual(d.status()["format_violations"], 2)
+
+    def test_format_violations_ignores_timeout(self):
+        d = state.Discussion("q", make_seats())
+        d.begin_round()
+        d.record_speech("a1", fail_result())
+        d.record_speech("a2", ok_result(text="[立場: 同意] [補充: 無]"))
+        d.end_round()
+        self.assertEqual(d.status()["format_violations"], 0)
+
+    def test_can_start_round_follows_phase(self):
+        d = state.Discussion("q", make_seats())
+        self.assertTrue(d.status()["can_start_round"])
+        d.begin_round()
+        self.assertFalse(d.status()["can_start_round"])
+        d.record_speech("a1", ok_result())
+        d.record_speech("a2", ok_result())
+        d.end_round()
+        self.assertFalse(d.status()["can_start_round"])
+        d.request_next_round()
+        self.assertTrue(d.status()["can_start_round"])
+
+    def test_status_converged_matches_converged_all_done(self):
+        d = state.Discussion("q", make_seats())
+        self._run_round(d, "[立場: 同意] [補充: 無]", "[立場: 同意] [補充: 無]")
+        self.assertTrue(d.converged())
+        self.assertTrue(d.status()["converged"])
+
+    def test_status_converged_matches_converged_some_more(self):
+        d = state.Discussion("q", make_seats())
+        self._run_round(d, "[立場: 同意] [補充: 有]", "[立場: 同意] [補充: 無]")
+        self.assertFalse(d.converged())
+        self.assertFalse(d.status()["converged"])
+
+
 if __name__ == "__main__":
     unittest.main()
