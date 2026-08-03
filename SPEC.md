@@ -32,10 +32,25 @@
 
 | 名詞 | 定義 |
 |---|---|
-| 顧問 advisor | 參與討論的 AI，2～4 個 |
-| 仲裁者 arbiter | 從已設定的模型中指定一個擔任。**不參與討論**，但看得見全部發言 |
+| 席次 seat | **一個 `(CLI, 模型)` 組合**。席次才是議會的成員單位，不是 CLI |
+| 顧問 advisor | 參與討論的席次，2～4 個 |
+| 仲裁者 arbiter | 指定一個席次擔任。**不參與討論**，但看得見全部發言 |
 | 一輪 round | 每位顧問各發言一次，順序固定 |
 | 逐字稿 transcript | 由 council 自己保存的完整發言紀錄，是組 prompt 的唯一依據 |
+
+### 2.1 一個 CLI 可以提供多個席次
+
+**議會的成員是席次，不是 CLI。** 四個 CLI 都支援 `--model` 指定模型，
+因此同一個 CLI 可以同時佔用多個席次、各跑不同模型。
+
+2026-08-03 實測：`opencode` 以 `-m` 分別跑 `deepseek-v4-flash-free` 與
+`nemotron-3-ultra-free`，兩者各自回報不同身分，互不干擾。
+
+兩個直接後果：
+
+- 使用者可以組出**完全由免費模型構成的議會**（例如 opencode 之下的數個 free 模型），
+  不動用任何付費訂閱。
+- 開發與測試時，`ask()` 的驗證可以全部跑在免費席次上，**不消耗任何人的付費額度**。
 
 ---
 
@@ -74,8 +89,9 @@ def detect() -> dict:
        "version": str|None, "error": str|None}
     """
 
-def ask(prompt: str, timeout_s: int, max_chars: int) -> dict:
+def ask(prompt: str, model: str | None, timeout_s: int, max_chars: int) -> dict:
     """送出一次性請求並取回純文字答覆。
+    model=None 代表使用該 CLI 的預設模型；否則以該 CLI 的 --model 旗標指定。
     必須：以子行程呼叫 CLI 的非互動模式；逾時強制終止；
           輸出超過 max_chars 時截斷並標記 truncated=True。
     不得：續用 session、寫入專案外檔案、要求互動確認。
@@ -85,14 +101,17 @@ def ask(prompt: str, timeout_s: int, max_chars: int) -> dict:
     """
 ```
 
+⚠️ `src/adapters/` 目前的 `ask()` 佔位簽章**尚未包含 `model`**，實作 `ask()` 的
+工作包必須一併更新四個模組與相關測試。
+
 ### 4.1 各 CLI 的非互動呼叫方式（2026-08-03 實測）
 
-| id | 指令 | 唯讀/限制 |
-|---|---|---|
-| `claude` | `claude -p <prompt> --output-format stream-json` | 以 permission mode 限制工具 |
-| `codex` | `codex exec --json <prompt>` | 以 sandbox 設定限制 |
-| `gemini` | `gemini -p <prompt> -o json` | `--approval-mode plan`（唯讀） |
-| `opencode` | `opencode run --format json <prompt>` | `--dir` 圈住工作目錄 |
+| id | 指令 | 指定模型 | 唯讀/限制 |
+|---|---|---|---|
+| `claude` | `claude -p <prompt> --output-format stream-json` | `--model` | 以 permission mode 限制工具 |
+| `codex` | `codex exec --json <prompt>` | `-m` | 以 sandbox 設定限制 |
+| `gemini` | `gemini -p <prompt> -o json` | `-m` | `--approval-mode plan`（唯讀） |
+| `opencode` | `opencode run --format json <prompt>` | `-m`（`provider/model`） | `--dir` 圈住工作目錄 |
 
 ⚠️ **這些旗標是 2026-08-03 當天的事實，不是永久契約。** CLI 改版會變。
 adapter 必須在 `detect()` 取得版本，並在 `ask()` 失敗時回傳可讀的錯誤，

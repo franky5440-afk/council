@@ -1,32 +1,123 @@
 # council
 
-**專案方向待定**（2026-08-03 建立）。目前 repo 內只有派工基礎設施。
+Convene several AI models as a council: advisors speak in turn and can see each
+other's answers, then an arbiter you designate integrates the discussion into a
+single conclusion.
 
-本專案的實作由 opencode 的 deepseek 擔任 builder，Claude Code 主對話直接派工並負責審查與版控。
-（同層的 `lottrey` 不同：那個專案完全由 Claude agent 撰寫，不經 deepseek。）
+council runs the **official CLIs you have already installed and logged into**
+(`claude`, `codex`, `gemini`, `opencode`) as local subprocesses. It does not call
+any model API, and it never sees, stores, or forwards your credentials — each CLI
+manages its own login. What it consumes is **your own subscription quota**.
 
-## 派工
+---
 
-```bash
-./dispatch.sh dispatch/packages/001-範例.md          # 新開一輪
-./dispatch.sh -s ses_xxxxx dispatch/packages/002.md  # 接續同一 session 補指示
+## ⚠️ Scope and limits — read this first
+
+| | |
+|---|---|
+| **Status** | **Alpha, under active development. Not usable yet.** The adapter detection layer works; the discussion engine and UI are not built. |
+| **Platforms** | Linux and macOS only. **Windows is not supported** and will not work — see `SPEC.md` §8. |
+| **Prerequisites** | You must install and log into the CLIs yourself. council will not do it for you. |
+| **Cost** | Every round calls every advisor, and the full transcript is resent each round. **This burns your subscription quota quickly.** |
+| **Audience** | Intended for advanced users comfortable with CLI tooling who understand the quota cost. |
+| **Affiliation** | Not affiliated with, endorsed by, or supported by Anthropic, OpenAI, Google, or any model provider. |
+
+CLI flags change between releases. The invocations council relies on were verified
+on 2026-08-03 against `claude` 2.1.220, `codex` 0.145.0, `gemini` 0.53.1 and
+`opencode` 1.18.11. Other versions may not work.
+
+## How it works
+
+```
+ you ─▶ local service (discussion engine) ─▶ adapter ─▶ CLI subprocess ─▶ your subscription
+            │
+            └── transcript (kept by council)
 ```
 
-腳本會印出 session id 與**實際的 git 變更**，並把該輪追加到 `dispatch/LEDGER.md`。
-builder 的自述不會被當成結果呈現——審查一律讀 diff（自述請看 `dispatch/sessions/<id>.jsonl`）。
+A **seat** is a `(CLI, model)` pair, and seats — not CLIs — are the members of the
+council. Since every CLI accepts a model flag, one CLI can fill several seats with
+different models. You can therefore assemble a council entirely out of free models
+without touching a paid subscription.
 
-若 builder 遇到需求歧義，它會寫 `dispatch/BLOCKED.md` 並停手（headless 下它無法反問）。
-每輪派工開始時，上一輪殘留的 `BLOCKED.md` 會先被歸檔到 `dispatch/blocked/`，
-所以**它存在就代表「這一輪」卡關**，不會有舊報告造成的假警報。
+Advisors are run read-only wherever the CLI supports it: they give opinions, they
+do not act.
 
-## 檔案
+Because AI produces output whenever it is given input, council imposes explicit
+stop boundaries — most importantly, **a round never advances to the next round on
+its own**. It stops and waits for you. See `SPEC.md` §5 for all six.
 
-| 路徑 | 用途 |
+`SPEC.md` is the authoritative specification and the place to start reading.
+
+## Development
+
+Implementation is dispatched to a local builder agent; `dispatch/` holds every
+work package, an append-only ledger of dispatches, and any blocking reports. The
+history is intentionally public — you can read exactly what was asked for and what
+came back.
+
+```bash
+python3 -m unittest discover tests -v
+```
+
+Tests never invoke a real CLI.
+
+## License
+
+MIT — see `LICENSE`.
+
+---
+---
+
+# council（繁體中文）
+
+把數個 AI 組成一個議會：顧問輪流發言、彼此看得見對方的回答，最後由你指定的**仲裁者**
+把討論整合成一個結論。
+
+council 驅動**你自己安裝並登入的官方 CLI**（`claude`、`codex`、`gemini`、`opencode`）
+作為本機子行程。它不呼叫任何模型 API，也**不接觸、不儲存、不轉發你的憑證**——登入狀態
+由各家 CLI 自己管。它消耗的是**你自己的訂閱額度**。
+
+---
+
+## ⚠️ 範圍與限制——請先讀這裡
+
+| | |
 |---|---|
-| `AGENTS.md` | builder 與 reviewer 共用的專案規則（唯一規則檔） |
-| `dispatch.sh` | 派工入口 |
-| `dispatch/packages/` | 工作包原文（版控，可回查派了什麼） |
-| `dispatch/LEDGER.md` | append-only 派工紀錄 |
-| `dispatch/BLOCKED.md` | builder 這輪的卡關報告（存在才代表卡關） |
-| `dispatch/blocked/` | 歷史卡關報告 |
-| `dispatch/sessions/` | opencode 原始事件流（不版控） |
+| **狀態** | **Alpha，開發中，還不能用。** 目前只有 CLI 偵測層可運作，討論引擎與 UI 尚未實作。 |
+| **平台** | 僅支援 Linux 與 macOS。**不支援 Windows**，在 Windows 上不會運作——原因見 `SPEC.md` §8。 |
+| **前置條件** | 你必須自行安裝並登入那些 CLI，council 不會代勞。 |
+| **成本** | 每一輪都會呼叫每一位顧問，且每輪重送完整逐字稿。**這會很快消耗你的訂閱額度。** |
+| **適用對象** | 熟悉 CLI 工具、並清楚上述額度成本的進階使用者。 |
+| **關係聲明** | 與 Anthropic、OpenAI、Google 或任何模型供應商無隸屬關係，未獲其背書或支援。 |
+
+各家 CLI 的旗標會隨版本改變。council 所依賴的呼叫方式是 2026-08-03 對
+`claude` 2.1.220、`codex` 0.145.0、`gemini` 0.53.1、`opencode` 1.18.11 實測的結果，
+其他版本未必適用。
+
+## 運作方式
+
+**席次（seat）是一個 `(CLI, 模型)` 組合，議會的成員是席次、不是 CLI。** 由於四個 CLI
+都支援指定模型的旗標，同一個 CLI 可以用不同模型佔用多個席次。因此你可以組出
+**完全由免費模型構成的議會**，不動用任何付費訂閱。
+
+顧問在 CLI 支援的範圍內一律以唯讀模式執行：它們只出意見，不動手。
+
+因為 AI 只要有輸入就會產生輸出，council 施加了明確的停止邊界——其中最重要的一道是
+**一輪結束後永不自動進入下一輪**，它會停下來等你。六道邊界全部列於 `SPEC.md` §5。
+
+`SPEC.md` 是正式規格，建議從它開始讀。
+
+## 開發方式
+
+實作由本機的 builder agent 承接；`dispatch/` 保存了每一份工作包、append-only 的派工
+紀錄，以及所有卡關回報。這段歷程刻意公開——你可以確切看到當初要求了什麼、又交回了什麼。
+
+```bash
+python3 -m unittest discover tests -v
+```
+
+測試不會呼叫任何真實 CLI。
+
+## 授權
+
+MIT，見 `LICENSE`。
