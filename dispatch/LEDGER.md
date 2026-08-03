@@ -150,3 +150,19 @@
   - `?? dispatch/packages/006-lock-readonly-flags.md`
   - `?? dispatch/packages/007-stderr-error-detail.md`
   - `?? dispatch/packages/008-argument-injection.md`
+
+## 2026-08-03 22:55 · 009-opencode-readonly.md
+
+- 模式：接續 ses_0380df9ceffeh4tOwQ67EPX7cs
+- session：`ses_0380df9ceffeh4tOwQ67EPX7cs`
+- 派工前 HEAD：`d2b274436485bd1af9952ba1049f7df58cfddd92`（工作區未提交項目 2 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M SPEC.md`
+  - ` M src/adapters/base.py`
+  - ` M src/adapters/claude.py`
+  - ` M src/adapters/codex.py`
+  - ` M src/adapters/gemini.py`
+  - ` M src/adapters/opencode.py`
+  - ` M tests/test_adapters_ask.py`
+  - `?? dispatch/packages/009-opencode-readonly.md`

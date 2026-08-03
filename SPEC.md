@@ -111,7 +111,7 @@ def ask(prompt: str, model: str | None, timeout_s: int, max_chars: int) -> dict:
 | `claude` | `claude -p <prompt> --output-format json --tools ""` | `--model` | `--tools ""` 停用全部內建工具 | JSON 的 `result` |
 | `codex` | `codex exec --sandbox read-only --skip-git-repo-check --output-last-message <檔案> <prompt>` | `-m` | `--sandbox read-only`，`-C` 圈住目錄 | 該檔案的純文字 |
 | `gemini` | `gemini -p <prompt> -o json --approval-mode plan --skip-trust` | `-m` | `--approval-mode plan` | JSON 的 `response` |
-| `opencode` | `opencode run --format json <prompt>` | `-m`（`provider/model`） | ⚠️ **目前無**（見 §4.2） | 事件流中 `type=="text"` |
+| `opencode` | `opencode run --format json --agent advisor <prompt>` | `-m`（`provider/model`） | 自訂 agent 逐項 `deny`（見 §4.2） | 事件流中 `type=="text"` |
 
 2026-08-03 **實機呼叫**四家各一次驗證上表；真實輸出樣本存於 `tests/fixtures/`，
 擷取過程中發現的坑記於該目錄的 `README.md`，實作前必讀。其中兩點會直接讓呼叫失敗：
@@ -130,25 +130,34 @@ adapter 必須在 `detect()` 取得版本，並在 `ask()` 失敗時回傳可讀
 顧問的職責是出意見，不是動手。所有 adapter 必須以各 CLI 提供的**機制層**手段
 限制工具與檔案存取，不得只靠 prompt 拜託模型別亂動。
 
-#### ⚠️ 未解問題：`opencode` 目前不符合本節要求（2026-08-03 實測確認）
+#### `opencode` 的唯讀怎麼做（2026-08-03 實測確定）
 
-原本記載「`--dir` 圈住工作目錄」**是錯的**。`--dir` 只是設定執行目錄，
-不是權限邊界，`opencode run --help` 對它的說明就只有 "directory to run in"。
+⚠️ **`--dir` 不是權限邊界。** 曾誤記為「`--dir` 圈住工作目錄」，那是錯的——
+`opencode run --help` 對它的說明只有 "directory to run in"。實測：`--dir` 指向空白
+暫存目錄後，opencode 仍能用 bash 寫檔到該目錄**之外**，且全程沒有任何批准提示。
 
-實測（同一探測連續重現）：以 `--dir` 指向空白暫存目錄執行 opencode，
-要求它用 bash 寫檔到 `--dir` **之外**的路徑，**檔案成功建立、且全程沒有任何批准提示**。
+⚠️ **內建的 `--agent plan` 也不夠。** 其權限清單中 `edit` 為 `deny`，但**沒有任何
+`bash` 條目**，bash 因而落在 `*: allow` 之下。實測它沒寫成檔案，但模型的回覆是
+「目前處於 Plan Mode，不能執行寫檔操作」——那是**模型自願遵守**，屬 prompt 層，
+正是本節禁止依賴的東西。換一個不那麼配合的模型就不成立。
 
-`--agent plan` 也**不足以**解決：該 agent 的權限清單中 `edit` 為 `deny`，
-但**沒有任何 `bash` 條目**，bash 因而落在 `*: allow` 之下。實測要求它以 bash 寫檔時
-檔案確實沒被建立，但模型的回覆是「目前處於 Plan Mode，不能執行寫檔操作」——
-那是**模型自願遵守**，屬 prompt 層，正是本節禁止依賴的東西。
+**正解**：由 council 在當次的暫存目錄內寫一個自訂 agent 定義
+`<暫存目錄>/.opencode/agents/advisor.md`，以 frontmatter 的 `permission` 區塊逐項
+`deny`（至少 `bash`、`edit`、`webfetch`、`task`、`websearch`），再以 `--agent advisor` 執行。
 
-因此四家之中只有 `claude` / `codex` / `gemini` 具備機制層唯讀，`opencode` 沒有。
-在補上真正的機制層限制（例如明確 `deny` 掉 `bash` 與 `write` 的自訂 agent 或權限設定，
-並以整合測試驗證寫入確實失敗）之前，**不得宣稱 opencode 席次是唯讀的**。
+實測此法確為機制層生效：事件流中**完全沒有 bash 工具呼叫**（該工具不存在），
+stderr 出現 `permission requested: external_directory (...); auto-rejecting`，
+目標檔案未被建立。
 
-⚠️ 這一條也適用於本專案自己的 `dispatch.sh`：它同樣只用 `--dir`，
-所以 builder 被「關在 council 目錄內」這個說法目前也沒有機制層保證。
+⚠️ **但 `--agent` 是 fail-open 的，必須自行補上失敗關閉。** 實測 `--agent` 指向
+不存在的 agent 時，opencode **無聲退回完全可寫的預設 agent**、exit code 仍為 0、
+檔案照樣被寫出，唯一訊號是 stderr 的一行
+`agent "..." not found. Falling back to default agent`。
+因此 adapter **必須**檢查 stderr 是否出現該退回訊息，出現即回 `ok=False`——
+不得讓唯讀保證在無人察覺的情況下消失。
+
+⚠️ 本專案自己的 `dispatch.sh` 同樣只用 `--dir`，所以 builder 被「關在 council
+目錄內」這個說法**沒有機制層保證**。派工時要當成 builder 有能力寫到任何地方。
 
 ---
 
@@ -163,14 +172,14 @@ adapter 必須在 `detect()` 取得版本，並在 `ask()` 失敗時回傳可讀
 2. **單次發言長度上限**（`max_chars`，預設 8000 字元）。超過即截斷並標記，
    避免一家把後面的人 context 撐爆。
 3. **輪數硬上限**（預設 5 輪）。達上限後只剩「叫仲裁者」或「明確確認再開一輪」兩條路。
-4. **逾時強制終止**（`timeout_s`，預設 120 秒）。子行程逾時即 kill，該顧問本輪記為
+4. **逾時強制終止**（`timeout_s`，預設 **180 秒**）。子行程逾時即 kill，該顧問本輪記為
    「未回應」，討論繼續，不整場卡死。
 
-   ⚠️ **預設值 120 秒待調整（2026-08-03 實測發現）**：`gemini` 遇到 503 會**自行重試並退避**，
-   實測一次成功的呼叫因兩次重試而耗時 **119.5 秒**，差 0.5 秒就會被這道邊界砍掉，
-   而且會被誤記為「未回應」。證據見 `tests/fixtures/gemini_success.json` 的
+   預設值原為 120 秒，2026-08-03 實測後調整為 180：`gemini` 遇到 503 會**自行重試並退避**，
+   實測兩次**成功**的呼叫分別耗時 **119.5 秒**與 **102.5 秒**，前者差 0.5 秒就會被舊上限
+   砍掉、並被誤記為「未回應」。證據見 `tests/fixtures/gemini_success.json` 的
    `stats.models.*.api`（`totalRequests: 3`、`totalErrors: 2`）。
-   本項屬停止邊界，改動需求方裁示，**尚未變更**。
+   代價是卡住的顧問要多等一分鐘；但「把成功的回覆誤殺並謊報未回應」比多等更糟。
 5. **收斂偵測**：每位顧問回覆結尾必須輸出一行
    `[立場: 同意|保留|反對] [補充: 有|無]`。
    全體皆「補充: 無」時，UI 提示可以收斂了。

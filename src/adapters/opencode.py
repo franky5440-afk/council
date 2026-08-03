@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 import tempfile
 
@@ -9,6 +10,29 @@ from .base import truncate as _truncate
 
 ID = "opencode"
 CMD = "opencode"
+
+AGENT_NAME = "advisor"
+AGENT_DEF = """\
+---
+description: Read-only council advisor.
+mode: primary
+permission:
+  bash: deny
+  edit: deny
+  webfetch: deny
+  task: deny
+  todowrite: deny
+  websearch: deny
+  lsp: deny
+  skill: deny
+---
+
+You are a council advisor. Answer the question directly.
+"""
+
+# `--agent` 指向不存在的 agent 時 opencode 不報錯，只印這行 stderr
+# 後退回完全可寫的預設 agent，exit code 仍為 0。
+FALLBACK_MSG = "Falling back to default agent"
 
 
 def detect() -> dict:
@@ -58,14 +82,28 @@ def ask(prompt: str, model: str | None, timeout_s: int, max_chars: int) -> dict:
         return injection
 
     with tempfile.TemporaryDirectory() as workdir:
-        argv = [path, "run", "--dir", workdir, "--format", "json"]
+        agents_dir = os.path.join(workdir, ".opencode", "agents")
+        os.makedirs(agents_dir)
+        with open(os.path.join(agents_dir, AGENT_NAME + ".md"), "w",
+                  encoding="utf-8") as f:
+            f.write(AGENT_DEF)
+
+        argv = [path, "run", "--dir", workdir, "--format", "json",
+                "--agent", AGENT_NAME]
         if model is not None:
             argv += ["-m", model]
         argv += ["--", prompt]
         result = _run(argv, timeout_s)
 
     if not result["ok"]:
+        result.pop("stderr", None)
         return result
+
+    if FALLBACK_MSG in result["stderr"]:
+        return {"ok": False, "text": "", "truncated": False,
+                "error": "opencode read-only agent not in effect "
+                         "(fell back to default agent); result discarded",
+                "elapsed_s": result["elapsed_s"]}
 
     text = _extract_text(result["text"])
     if not text.strip():

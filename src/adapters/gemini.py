@@ -39,6 +39,7 @@ def ask(prompt: str, model: str | None, timeout_s: int, max_chars: int) -> dict:
         result = _run(argv, timeout_s, cwd=workdir)
 
     if not result["ok"]:
+        result.pop("stderr", None)
         return result
 
     try:

@@ -162,8 +162,8 @@ class OpenCodeAskTest(unittest.TestCase):
             args = arglog.read_text().splitlines()
             self.assertEqual(args[0], "run")
             self.assertIn("--dir", args)
-            self.assertEqual(args[5], "-m")
-            self.assertEqual(args[6], "opencode/some-model")
+            m_i = args.index("-m")
+            self.assertEqual(args[m_i + 1], "opencode/some-model")
             self.assertEqual(args[-1], "hello")
 
     def test_dash_prompt_injection_rejected(self):
@@ -199,6 +199,64 @@ class OpenCodeAskTest(unittest.TestCase):
             args = arglog.read_text().splitlines()
             self.assertEqual(args[-2], "--")
             self.assertEqual(args[-1], "hello")
+
+    def test_agent_flag_pair_present(self):
+        with tempdir() as tmp:
+            arglog = tmp / "args.log"
+            make_exec(tmp, "opencode",
+                      f"printf '%s\\n' \"$@\" > {shq(str(arglog))}; "
+                      f"printf '%s\\n' {shq(event('text', 'ok'))}")
+            with patched_path(str(tmp)):
+                result = opencode.ask("hello", None, 5, 100)
+            self.assertTrue(result["ok"])
+            args = arglog.read_text().splitlines()
+            i = args.index("--agent")
+            self.assertEqual(args[i + 1], opencode.AGENT_NAME)
+
+    def test_agent_file_created_with_deny(self):
+        with tempdir() as tmp:
+            copy = tmp / "agent_copy.md"
+            agent_sub = f".opencode/agents/{opencode.AGENT_NAME}.md"
+            body = (
+                "prev=''\n"
+                "for a in \"$@\"; do\n"
+                "  if [ \"$prev\" = '--dir' ]; then\n"
+                f"    while IFS= read -r line; do printf '%s\\n' \"$line\"; done "
+                f"< \"$a/{agent_sub}\" > {shq(str(copy))}\n"
+                "  fi\n"
+                '  prev="$a"\n'
+                "done\n"
+                f"printf '%s\\n' {shq(event('text', 'ok'))}"
+            )
+            make_exec(tmp, "opencode", body)
+            with patched_path(str(tmp)):
+                result = opencode.ask("hello", None, 5, 100)
+            self.assertTrue(result["ok"])
+            content = copy.read_text()
+            self.assertIn("bash: deny", content)
+            self.assertIn("edit: deny", content)
+
+    def test_fallback_to_default_agent_fails(self):
+        with tempdir() as tmp:
+            msg = f'agent "{opencode.AGENT_NAME}" not found. Falling back to default agent'
+            body = (
+                f"printf '%s\\n' {shq(event('text', 'sneaky reply'))}\n"
+                f"printf '%s\\n' {shq(msg)} >&2"
+            )
+            make_exec(tmp, "opencode", body)
+            with patched_path(str(tmp)):
+                result = opencode.ask("hello", None, 5, 100)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["text"], "")
+        self.assertIn("not in effect", result["error"])
+
+    def test_no_fallback_message_succeeds(self):
+        with tempdir() as tmp:
+            make_exec(tmp, "opencode", f"printf '%s\\n' {shq(event('text', 'ok'))}")
+            with patched_path(str(tmp)):
+                result = opencode.ask("hello", None, 5, 100)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["text"], "ok")
 
 
 class BaseRunTest(unittest.TestCase):
@@ -268,6 +326,39 @@ class BaseRunTest(unittest.TestCase):
                 result = base.run(["fakecli"], 5)
         self.assertEqual(result["error"], "command exited with code 3")
 
+    def test_run_success_carries_stderr(self):
+        with tempdir() as tmp:
+            make_exec(tmp, "fakecli",
+                      "printf '%s' 'warn text' >&2; printf '%s' 'out text'")
+            with patched_path(str(tmp)):
+                result = base.run(["fakecli"], 5)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["stderr"], "warn text")
+
+    def test_run_nonzero_carries_stderr(self):
+        with tempdir() as tmp:
+            make_exec(tmp, "fakecli", "printf '%s' 'boom' >&2; exit 3")
+            with patched_path(str(tmp)):
+                result = base.run(["fakecli"], 5)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["stderr"], "boom")
+
+    def test_run_timeout_has_stderr_key(self):
+        with tempdir() as tmp:
+            make_exec(tmp, "fakecli", "exec /bin/sleep 60")
+            with patched_path(str(tmp)):
+                result = base.run(["fakecli"], 0.2)
+        self.assertFalse(result["ok"])
+        self.assertIn("timed out", result["error"])
+        self.assertIn("stderr", result)
+        self.assertEqual(result["stderr"], "")
+
+    def test_run_missing_exec_has_stderr_key(self):
+        result = base.run(["/nonexistent/bin/nope-xyz"], 5)
+        self.assertFalse(result["ok"])
+        self.assertIn("stderr", result)
+        self.assertEqual(result["stderr"], "")
+
 
 def log_args_body(out_log: str, payload: str) -> str:
     return (
@@ -335,6 +426,7 @@ class ClaudeAskTest(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertIn("command exited with code 3", result["error"])
         self.assertEqual(result["text"], "")
+        self.assertNotIn("stderr", result)
 
     def test_oversized_prompt_never_spawns_subprocess(self):
         with tempdir() as tmp:
@@ -493,6 +585,7 @@ class CodexAskTest(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertIn("command exited with code 3", result["error"])
         self.assertEqual(result["text"], "")
+        self.assertNotIn("stderr", result)
 
     def test_oversized_prompt_never_spawns_subprocess(self):
         with tempdir() as tmp:
@@ -652,6 +745,7 @@ class GeminiAskTest(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertIn("command exited with code 3", result["error"])
         self.assertEqual(result["text"], "")
+        self.assertNotIn("stderr", result)
 
     def test_oversized_prompt_never_spawns_subprocess(self):
         with tempdir() as tmp:

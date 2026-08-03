@@ -110,6 +110,8 @@ def run(argv: list, timeout_s: int, cwd: str | None = None) -> dict:
     逾時強制終止、量測 elapsed_s、非零退出回可讀錯誤。
     stdout 以原始內容原樣放進 text（可能包含 CLI 自己的格式，例如 JSON
     事件流），由各 adapter 解析萃取後再以 truncate() 套用 max_chars。
+    stderr 以原始內容原樣放進 stderr，供 adapter 檢查（例如 opencode 的
+    fail-open 偵測）；此鍵只在 base.run() 與 adapter 之間流通。
     stdin 一律導向 /dev/null：四家 CLI 都會讀 stdin，不關掉會讓行程卡住。
     """
     start = time.monotonic()
@@ -120,11 +122,11 @@ def run(argv: list, timeout_s: int, cwd: str | None = None) -> dict:
     except subprocess.TimeoutExpired:
         return {"ok": False, "text": "", "truncated": False,
                 "error": f"timed out after {timeout_s}s",
-                "elapsed_s": _elapsed(start)}
+                "stderr": "", "elapsed_s": _elapsed(start)}
     except OSError as exc:
         return {"ok": False, "text": "", "truncated": False,
                 "error": f"failed to run: {exc}",
-                "elapsed_s": _elapsed(start)}
+                "stderr": "", "elapsed_s": _elapsed(start)}
 
     elapsed = _elapsed(start)
     if proc.returncode != 0:
@@ -133,10 +135,12 @@ def run(argv: list, timeout_s: int, cwd: str | None = None) -> dict:
         if detail is not None:
             error += f": {detail}"
         return {"ok": False, "text": "", "truncated": False,
-                "error": error, "elapsed_s": elapsed}
+                "error": error, "stderr": proc.stderr or "",
+                "elapsed_s": elapsed}
 
     return {"ok": True, "text": proc.stdout or "", "truncated": False,
-            "error": None, "elapsed_s": elapsed}
+            "error": None, "stderr": proc.stderr or "",
+            "elapsed_s": elapsed}
 
 
 def truncate(text: str, max_chars: int) -> tuple:

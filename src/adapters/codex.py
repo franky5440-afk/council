@@ -47,6 +47,7 @@ def ask(prompt: str, model: str | None, timeout_s: int, max_chars: int) -> dict:
                     raw = f.read()
 
     if not result["ok"]:
+        result.pop("stderr", None)
         return result
 
     if raw is None:
