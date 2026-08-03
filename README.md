@@ -16,6 +16,8 @@
 builder 的自述不會被當成結果呈現——審查一律讀 diff（自述請看 `dispatch/sessions/<id>.jsonl`）。
 
 若 builder 遇到需求歧義，它會寫 `dispatch/BLOCKED.md` 並停手（headless 下它無法反問）。
+每輪派工開始時，上一輪殘留的 `BLOCKED.md` 會先被歸檔到 `dispatch/blocked/`，
+所以**它存在就代表「這一輪」卡關**，不會有舊報告造成的假警報。
 
 ## 檔案
 
@@ -25,4 +27,6 @@ builder 的自述不會被當成結果呈現——審查一律讀 diff（自述�
 | `dispatch.sh` | 派工入口 |
 | `dispatch/packages/` | 工作包原文（版控，可回查派了什麼） |
 | `dispatch/LEDGER.md` | append-only 派工紀錄 |
+| `dispatch/BLOCKED.md` | builder 這輪的卡關報告（存在才代表卡關） |
+| `dispatch/blocked/` | 歷史卡關報告 |
 | `dispatch/sessions/` | opencode 原始事件流（不版控） |

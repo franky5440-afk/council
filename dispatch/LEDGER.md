@@ -4,3 +4,40 @@
 保留完整決策歷程。時間一律台灣時間（UTC+8）。
 
 工作包原文存放於 `dispatch/packages/`（納入版控），可依下方檔名回查當初派了什麼。
+
+## 2026-08-03 20:49 · 000-smoke.md
+
+- 模式：新開
+- session：`ses_03853d00affezAfeRrQN8lgbu5`
+- 派工前 HEAD：`92d446db6d9a784d4dc080027b32dadac89fe080`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - `?? SMOKE.md`
+  - `?? dispatch/packages/`
+
+## 2026-08-03 20:50 · 001-ambiguity-probe.md
+
+- 模式：新開
+- session：`ses_0385317c0ffefcl9RICMkdLJcf`
+- 派工前 HEAD：`92d446db6d9a784d4dc080027b32dadac89fe080`（工作區未提交項目 2 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M dispatch/LEDGER.md`
+  - `?? dispatch/BLOCKED.md`
+  - `?? dispatch/packages/`
+- ⚠ builder 回報卡關（見 BLOCKED.md）
+
+## 2026-08-03 20:52 · 000-smoke.md
+
+- 模式：新開
+- session：`ses_03851720cffeMv3JVE8pQr4wpg`
+- 派工前 HEAD：`92d446db6d9a784d4dc080027b32dadac89fe080`（工作區未提交項目 5 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M README.md`
+  - ` M dispatch.sh`
+  - ` M dispatch/LEDGER.md`
+  - `?? SMOKE.md`
+  - `?? dispatch/blocked/`
+  - `?? dispatch/packages/`
+- 上一輪卡關報告已歸檔：`dispatch/blocked/20260803-205211.md`

@@ -46,6 +46,18 @@ fi
 
 mkdir -p "$SESSIONS_DIR"
 
+# ---- 先歸檔上一輪的 BLOCKED.md ----
+# 沒有這步的話，舊的卡關報告會讓之後每一輪都跳假警報，訊號就廢了。
+# 歸檔而非刪除：卡關報告是決策歷程的一部分，只追加、不銷毀。
+BLOCKED_FILE="$PROJECT_DIR/dispatch/BLOCKED.md"
+ARCHIVED_BLOCKED=""
+if [[ -f "$BLOCKED_FILE" ]]; then
+    mkdir -p "$PROJECT_DIR/dispatch/blocked"
+    ARCHIVED_BLOCKED="dispatch/blocked/$(TZ=Asia/Taipei date '+%Y%m%d-%H%M%S').md"
+    mv "$BLOCKED_FILE" "$PROJECT_DIR/$ARCHIVED_BLOCKED"
+    echo "· 上一輪的 BLOCKED.md 已歸檔至 $ARCHIVED_BLOCKED"
+fi
+
 # ---- 派工前基準線（審查靠這條線）----
 BEFORE_HEAD="$(git -C "$PROJECT_DIR" rev-parse HEAD 2>/dev/null || echo NO_COMMIT)"
 DIRTY_BEFORE="$(git -C "$PROJECT_DIR" status --porcelain | wc -l)"
@@ -93,8 +105,8 @@ echo "──────── 派工結果 ────────"
 echo "session id : $SID   ← 要接續就用 -s $SID"
 echo "退出碼     : $RC"
 echo "原始事件流 : ${RAW#"$PROJECT_DIR"/}"
-if [[ -f "$PROJECT_DIR/dispatch/BLOCKED.md" ]]; then
-    echo "⚠ builder 回報卡關：dispatch/BLOCKED.md（先讀它）"
+if [[ -f "$BLOCKED_FILE" ]]; then
+    echo "⚠ builder 這輪回報卡關：dispatch/BLOCKED.md（先讀它）"
 fi
 echo
 if [[ -n "$CHANGED" ]]; then
@@ -121,7 +133,8 @@ echo "────────────────────────�
     else
         echo "- 派工後工作區變更：無"
     fi
-    [[ -f "$PROJECT_DIR/dispatch/BLOCKED.md" ]] && echo "- ⚠ builder 回報卡關（見 BLOCKED.md）"
+    [[ -n "$ARCHIVED_BLOCKED" ]] && echo "- 上一輪卡關報告已歸檔：\`$ARCHIVED_BLOCKED\`"
+    [[ -f "$BLOCKED_FILE" ]] && echo "- ⚠ builder 這輪回報卡關（見 dispatch/BLOCKED.md）"
 } >>"$LEDGER"
 
 exit "$RC"
