@@ -132,9 +132,17 @@ adapter 必須在 `detect()` 取得版本，並在 `ask()` 失敗時回傳可讀
 
 #### `opencode` 的唯讀怎麼做（2026-08-03 實測確定）
 
-⚠️ **`--dir` 不是權限邊界。** 曾誤記為「`--dir` 圈住工作目錄」，那是錯的——
-`opencode run --help` 對它的說明只有 "directory to run in"。實測：`--dir` 指向空白
-暫存目錄後，opencode 仍能用 bash 寫檔到該目錄**之外**，且全程沒有任何批准提示。
+⚠️ **`--dir` 不是可靠的權限邊界。** 曾誤記為「`--dir` 圈住工作目錄」，那是錯的——
+`opencode run --help` 對它的說明只有 "directory to run in"。
+
+實測（同一探測重現 3 次全部成功）：`--dir` 指向空白暫存目錄後，opencode 仍能用
+bash 寫檔到該目錄**之外**，檔案確實建立。
+
+⚠️ 更精確地說，邊界**存在但會漏**，這比「完全沒有邊界」更難察覺：
+同一次呼叫的 stderr 會出現 `permission requested: external_directory (...); auto-rejecting`
+——權限系統確實有動作——但寫入**仍然成功**。對照組：要求它以 `bash cat` 讀取
+同一個外部檔案時**確實被擋下**。因此 `external_directory` 這道閘門對讀取有效、
+對 bash 寫入無效，不能用它來論證「子行程被關在 `--dir` 內」。
 
 ⚠️ **內建的 `--agent plan` 也不夠。** 其權限清單中 `edit` 為 `deny`，但**沒有任何
 `bash` 條目**，bash 因而落在 `*: allow` 之下。實測它沒寫成檔案，但模型的回覆是
