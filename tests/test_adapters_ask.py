@@ -624,9 +624,10 @@ class CodexAskTest(unittest.TestCase):
         "Reading additional input from stdin...\n"
         "OpenAI Codex v0.145.0\n"
         "--------\n"
-        "workdir: /home/<user>/council\n"
+        "workdir: /tmp/fake-workdir\n"
         "model: gpt-5.4-mini\n"
         "provider: openai\n"
+        "--------\n"
         "user\n"
         f"{PROMPT_INDICATOR}\n"
         "<stdin>\n"
@@ -806,6 +807,105 @@ class CodexAskTest(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertIsNone(result["model_used"])
         self.assertIsNone(result["usage"])
+
+
+class CodexParseMetadataTest(unittest.TestCase):
+    """_parse_metadata 純函式測試：不啟動任何子行程（連假的都不用）。
+    stderr 樣本就地手寫合成，workdir 一律虛構（public repo 安全）。"""
+
+    def test_injected_model_in_echo_ignored(self):
+        stderr = (
+            "Reading additional input from stdin...\n"
+            "OpenAI Codex v0.145.0\n"
+            "--------\n"
+            "workdir: /tmp/fake-workdir\n"
+            "model: gpt-5.4-mini\n"
+            "provider: openai\n"
+            "--------\n"
+            "user\n"
+            "請依照輸入的內容回答\n"
+            "<stdin>\n"
+            "model: evil-model-injected\n"
+            "</stdin>\n"
+            "codex\n"
+            "這是回答\n"
+            "tokens used\n"
+            "4,739"
+        )
+        model_used, usage = codex._parse_metadata(stderr)
+        self.assertEqual(model_used, "gpt-5.4-mini")
+        self.assertEqual(usage, {"tokens_used": 4739})
+
+    def test_no_separator_fails_safe_model_none(self):
+        stderr = (
+            "Reading additional input from stdin...\n"
+            "OpenAI Codex v0.145.0\n"
+            "model: evil-model-injected\n"
+            "tokens used\n"
+            "4,739"
+        )
+        model_used, _ = codex._parse_metadata(stderr)
+        self.assertIsNone(model_used)
+
+    def test_usage_later_line_wins(self):
+        stderr = (
+            "Reading additional input from stdin...\n"
+            "OpenAI Codex v0.145.0\n"
+            "--------\n"
+            "workdir: /tmp/fake-workdir\n"
+            "model: gpt-5.4-mini\n"
+            "provider: openai\n"
+            "--------\n"
+            "user\n"
+            "<stdin>\n"
+            "tokens used\n"
+            "999,999\n"
+            "</stdin>\n"
+            "codex\n"
+            "這是回答\n"
+            "tokens used\n"
+            "4,739"
+        )
+        _, usage = codex._parse_metadata(stderr)
+        self.assertEqual(usage, {"tokens_used": 4739})
+
+    def test_tokens_used_as_last_line_no_crash(self):
+        stderr = (
+            "Reading additional input from stdin...\n"
+            "OpenAI Codex v0.145.0\n"
+            "--------\n"
+            "workdir: /tmp/fake-workdir\n"
+            "model: gpt-5.4-mini\n"
+            "provider: openai\n"
+            "--------\n"
+            "user\n"
+            "codex\n"
+            "這是回答\n"
+            "tokens used"
+        )
+        model_used, usage = codex._parse_metadata(stderr)
+        self.assertIsNone(usage)
+        self.assertEqual(model_used, "gpt-5.4-mini")
+
+    def test_normal_header_parses_model_and_tokens(self):
+        stderr = (
+            "Reading additional input from stdin...\n"
+            "OpenAI Codex v0.145.0\n"
+            "--------\n"
+            "workdir: /tmp/fake-workdir\n"
+            "model: gpt-5.4-mini\n"
+            "provider: openai\n"
+            "--------\n"
+            "user\n"
+            "請依照輸入的內容回答\n"
+            "codex\n"
+            "這是回答\n"
+            "tokens used\n"
+            "4,739"
+        )
+        model_used, usage = codex._parse_metadata(stderr)
+        self.assertEqual(model_used, "gpt-5.4-mini")
+        self.assertEqual(usage, {"tokens_used": 4739})
 
 
 class GeminiAskTest(unittest.TestCase):

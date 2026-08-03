@@ -210,3 +210,14 @@
   - `?? dispatch/packages/010-stdin-probe.md`
   - `?? dispatch/packages/011-stdin-transport.md`
   - `?? dispatch/packages/012-fix-011.md`
+
+## 2026-08-04 00:48 · 013-codex-model-header-only.md
+
+- 模式：新開
+- session：`ses_0377928f8ffewS9jZ0gXYuzIFG`
+- 派工前 HEAD：`c4a6f39932ddab55db24f9cf403b683cd07537c9`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M src/adapters/codex.py`
+  - ` M tests/test_adapters_ask.py`
+  - `?? dispatch/packages/013-codex-model-header-only.md`
