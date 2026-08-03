@@ -221,3 +221,13 @@
   - ` M src/adapters/codex.py`
   - ` M tests/test_adapters_ask.py`
   - `?? dispatch/packages/013-codex-model-header-only.md`
+
+## 2026-08-04 01:34 · 014-engine-state-boundaries.md
+
+- 模式：新開
+- session：`ses_0374e95c6ffezWPwpB6kVsmZxX`
+- 派工前 HEAD：`78edd7d16ed0fb638071f347d7eb08de59418ed2`（工作區未提交項目 0 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - `?? src/engine/`
+  - `?? tests/test_engine_state.py`
