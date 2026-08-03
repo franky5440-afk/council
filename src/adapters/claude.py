@@ -8,5 +8,5 @@ def detect() -> dict:
     return _detect(CMD, ID)
 
 
-def ask(prompt: str, timeout_s: int, max_chars: int) -> dict:
+def ask(prompt: str, model: str | None, timeout_s: int, max_chars: int) -> dict:
     raise NotImplementedError

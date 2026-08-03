@@ -65,3 +65,19 @@
   - `?? dispatch/packages/003-detect-review-fixes.md`
   - `?? src/`
   - `?? tests/`
+
+## 2026-08-03 21:35 · 004-ask-base-opencode.md
+
+- 模式：新開
+- session：`ses_03829fe55ffexR5DNmBD5mVXc4`
+- 派工前 HEAD：`a7b1b025e8f8167ee8c0b29e54aaa5d211e16d3d`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M src/adapters/base.py`
+  - ` M src/adapters/claude.py`
+  - ` M src/adapters/codex.py`
+  - ` M src/adapters/gemini.py`
+  - ` M src/adapters/opencode.py`
+  - ` M tests/test_adapters_detect.py`
+  - `?? dispatch/packages/004-ask-base-opencode.md`
+  - `?? tests/test_adapters_ask.py`

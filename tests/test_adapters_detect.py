@@ -20,7 +20,7 @@ class FakeAdapter:
         return {"id": self._id, "installed": True, "path": "/bin/fake",
                 "version": "1.0.0", "error": None}
 
-    def ask(self, prompt, timeout_s, max_chars):
+    def ask(self, prompt, model, timeout_s, max_chars):
         raise NotImplementedError
 
 
@@ -118,9 +118,9 @@ class RegistryTest(unittest.TestCase):
 
 class AskNotImplementedTest(unittest.TestCase):
     def test_ask_raises_not_implemented(self):
-        for cli_id in ADAPTERS:
+        for cli_id in ["claude", "codex", "gemini"]:
             with self.assertRaises(NotImplementedError):
-                ADAPTERS[cli_id].ask("prompt", 10, 100)
+                ADAPTERS[cli_id].ask("prompt", None, 10, 100)
 
 
 def tempdir():
