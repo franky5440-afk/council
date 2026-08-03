@@ -5,5 +5,9 @@ dispatch/sessions/
 # builder 的臨時腳本區
 dispatch/tmp/
 
+# session 交接文件：只在換對話視窗時有意義，會很快過期，
+# 對公開 repo 的外部讀者是雜訊。
+HANDOFF.md
+
 __pycache__/
 *.pyc
