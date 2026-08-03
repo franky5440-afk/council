@@ -2,7 +2,8 @@ import json
 import shutil
 import tempfile
 
-from .base import MAX_ARG_CHARS, detect as _detect
+from .base import MAX_ARG_CHARS, check_arg_injection
+from .base import detect as _detect
 from .base import run as _run
 from .base import truncate as _truncate
 
@@ -52,12 +53,16 @@ def ask(prompt: str, model: str | None, timeout_s: int, max_chars: int) -> dict:
         return {"ok": False, "text": "", "truncated": False,
                 "error": "opencode not found in PATH", "elapsed_s": 0.0}
 
+    injection = check_arg_injection(prompt, model)
+    if injection is not None:
+        return injection
+
     with tempfile.TemporaryDirectory() as workdir:
         argv = [path, "run", "--dir", workdir, "--format", "json"]
         if model is not None:
             argv += ["-m", model]
-        argv.append(prompt)
-        result = _run(argv, timeout_s, max_chars)
+        argv += ["--", prompt]
+        result = _run(argv, timeout_s)
 
     if not result["ok"]:
         return result

@@ -116,12 +116,6 @@ class RegistryTest(unittest.TestCase):
         self.assertEqual([r["id"] for r in results], list(ADAPTERS.keys()))
 
 
-class AskNotImplementedTest(unittest.TestCase):
-    def test_ask_raises_not_implemented(self):
-        for cli_id in ["claude", "codex", "gemini"]:
-            with self.assertRaises(NotImplementedError):
-                ADAPTERS[cli_id].ask("prompt", None, 10, 100)
-
 
 def tempdir():
     import tempfile

@@ -111,7 +111,7 @@ def ask(prompt: str, model: str | None, timeout_s: int, max_chars: int) -> dict:
 | `claude` | `claude -p <prompt> --output-format json --tools ""` | `--model` | `--tools ""` 停用全部內建工具 | JSON 的 `result` |
 | `codex` | `codex exec --sandbox read-only --skip-git-repo-check --output-last-message <檔案> <prompt>` | `-m` | `--sandbox read-only`，`-C` 圈住目錄 | 該檔案的純文字 |
 | `gemini` | `gemini -p <prompt> -o json --approval-mode plan --skip-trust` | `-m` | `--approval-mode plan` | JSON 的 `response` |
-| `opencode` | `opencode run --format json <prompt>` | `-m`（`provider/model`） | `--dir` 圈住工作目錄 | 事件流中 `type=="text"` |
+| `opencode` | `opencode run --format json <prompt>` | `-m`（`provider/model`） | ⚠️ **目前無**（見 §4.2） | 事件流中 `type=="text"` |
 
 2026-08-03 **實機呼叫**四家各一次驗證上表；真實輸出樣本存於 `tests/fixtures/`，
 擷取過程中發現的坑記於該目錄的 `README.md`，實作前必讀。其中兩點會直接讓呼叫失敗：
@@ -129,6 +129,26 @@ adapter 必須在 `detect()` 取得版本，並在 `ask()` 失敗時回傳可讀
 
 顧問的職責是出意見，不是動手。所有 adapter 必須以各 CLI 提供的**機制層**手段
 限制工具與檔案存取，不得只靠 prompt 拜託模型別亂動。
+
+#### ⚠️ 未解問題：`opencode` 目前不符合本節要求（2026-08-03 實測確認）
+
+原本記載「`--dir` 圈住工作目錄」**是錯的**。`--dir` 只是設定執行目錄，
+不是權限邊界，`opencode run --help` 對它的說明就只有 "directory to run in"。
+
+實測（同一探測連續重現）：以 `--dir` 指向空白暫存目錄執行 opencode，
+要求它用 bash 寫檔到 `--dir` **之外**的路徑，**檔案成功建立、且全程沒有任何批准提示**。
+
+`--agent plan` 也**不足以**解決：該 agent 的權限清單中 `edit` 為 `deny`，
+但**沒有任何 `bash` 條目**，bash 因而落在 `*: allow` 之下。實測要求它以 bash 寫檔時
+檔案確實沒被建立，但模型的回覆是「目前處於 Plan Mode，不能執行寫檔操作」——
+那是**模型自願遵守**，屬 prompt 層，正是本節禁止依賴的東西。
+
+因此四家之中只有 `claude` / `codex` / `gemini` 具備機制層唯讀，`opencode` 沒有。
+在補上真正的機制層限制（例如明確 `deny` 掉 `bash` 與 `write` 的自訂 agent 或權限設定，
+並以整合測試驗證寫入確實失敗）之前，**不得宣稱 opencode 席次是唯讀的**。
+
+⚠️ 這一條也適用於本專案自己的 `dispatch.sh`：它同樣只用 `--dir`，
+所以 builder 被「關在 council 目錄內」這個說法目前也沒有機制層保證。
 
 ---
 

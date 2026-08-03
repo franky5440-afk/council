@@ -81,3 +81,72 @@
   - ` M tests/test_adapters_detect.py`
   - `?? dispatch/packages/004-ask-base-opencode.md`
   - `?? tests/test_adapters_ask.py`
+
+## 2026-08-03 22:05 · 005-ask-remaining-three.md
+
+- 模式：新開
+- session：`ses_0380df9ceffeh4tOwQ67EPX7cs`
+- 派工前 HEAD：`67e3586c1d1e3de3b2b5a2d0ba0de5dd2c8bdf81`（工作區未提交項目 0 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M src/adapters/base.py`
+  - ` M src/adapters/claude.py`
+  - ` M src/adapters/codex.py`
+  - ` M src/adapters/gemini.py`
+  - ` M src/adapters/opencode.py`
+  - ` M tests/test_adapters_ask.py`
+  - ` M tests/test_adapters_detect.py`
+
+## 2026-08-03 22:11 · 006-lock-readonly-flags.md
+
+- 模式：接續 ses_0380df9ceffeh4tOwQ67EPX7cs
+- session：`ses_0380df9ceffeh4tOwQ67EPX7cs`
+- 派工前 HEAD：`67e3586c1d1e3de3b2b5a2d0ba0de5dd2c8bdf81`（工作區未提交項目 9 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M dispatch/LEDGER.md`
+  - ` M src/adapters/base.py`
+  - ` M src/adapters/claude.py`
+  - ` M src/adapters/codex.py`
+  - ` M src/adapters/gemini.py`
+  - ` M src/adapters/opencode.py`
+  - ` M tests/test_adapters_ask.py`
+  - ` M tests/test_adapters_detect.py`
+  - `?? dispatch/packages/006-lock-readonly-flags.md`
+
+## 2026-08-03 22:22 · 007-stderr-error-detail.md
+
+- 模式：接續 ses_0380df9ceffeh4tOwQ67EPX7cs
+- session：`ses_0380df9ceffeh4tOwQ67EPX7cs`
+- 派工前 HEAD：`67e3586c1d1e3de3b2b5a2d0ba0de5dd2c8bdf81`（工作區未提交項目 10 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M dispatch/LEDGER.md`
+  - ` M src/adapters/base.py`
+  - ` M src/adapters/claude.py`
+  - ` M src/adapters/codex.py`
+  - ` M src/adapters/gemini.py`
+  - ` M src/adapters/opencode.py`
+  - ` M tests/test_adapters_ask.py`
+  - ` M tests/test_adapters_detect.py`
+  - `?? dispatch/packages/006-lock-readonly-flags.md`
+  - `?? dispatch/packages/007-stderr-error-detail.md`
+
+## 2026-08-03 22:38 · 008-argument-injection.md
+
+- 模式：接續 ses_0380df9ceffeh4tOwQ67EPX7cs
+- session：`ses_0380df9ceffeh4tOwQ67EPX7cs`
+- 派工前 HEAD：`67e3586c1d1e3de3b2b5a2d0ba0de5dd2c8bdf81`（工作區未提交項目 11 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M dispatch/LEDGER.md`
+  - ` M src/adapters/base.py`
+  - ` M src/adapters/claude.py`
+  - ` M src/adapters/codex.py`
+  - ` M src/adapters/gemini.py`
+  - ` M src/adapters/opencode.py`
+  - ` M tests/test_adapters_ask.py`
+  - ` M tests/test_adapters_detect.py`
+  - `?? dispatch/packages/006-lock-readonly-flags.md`
+  - `?? dispatch/packages/007-stderr-error-detail.md`
+  - `?? dispatch/packages/008-argument-injection.md`
