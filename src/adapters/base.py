@@ -4,9 +4,8 @@ import time
 
 FALLBACK_TIMEOUT_S = 10
 
-# Linux 對單一 argv 字串有長度上限（MAX_ARG_STRLEN，典型 128 KiB）。
-# 逐字稿隨輪次成長，送出前先檢查 prompt 長度，超過即回 ok=False。
-MAX_ARG_CHARS = 100000
+# argv 上加載的固定指示；逐字稿（prompt）一律經 stdin 送出（SPEC.md §3.2）。
+PROMPT_INDICATOR = "請依照輸入的內容回答"
 
 
 def check_arg_injection(prompt: str, model: str | None) -> dict | None:
@@ -15,16 +14,17 @@ def check_arg_injection(prompt: str, model: str | None) -> dict | None:
     以 `-` 開頭的字串會被 CLI 當成旗標解析（argument injection），
     攻擊者可藉此送出 `--dangerously-bypass-...` 這類解除沙箱的旗標，
     繞過 SPEC.md §4.2 的唯讀保證。四個 adapter 在啟動子行程前呼叫。
-    model=None 時不檢查 model。
+    現在 prompt 經 stdin 送出、argv 只帶固定的 PROMPT_INDICATOR，所以此處
+    實際守的是 model（仍在 argv 上）。model=None 時不檢查 model。
     """
     if prompt.startswith("-"):
         return {"ok": False, "text": "", "truncated": False,
                 "error": "prompt starts with '-' and would be parsed as a CLI flag",
-                "elapsed_s": 0.0}
+                "elapsed_s": 0.0, "model_used": None, "usage": None}
     if model is not None and model.startswith("-"):
         return {"ok": False, "text": "", "truncated": False,
                 "error": "model starts with '-' and would be parsed as a CLI flag",
-                "elapsed_s": 0.0}
+                "elapsed_s": 0.0, "model_used": None, "usage": None}
     return None
 
 
@@ -103,7 +103,8 @@ def _pick_error_line(stderr: str) -> str | None:
     return line
 
 
-def run(argv: list, timeout_s: int, cwd: str | None = None) -> dict:
+def run(argv: list, timeout_s: int, stdin_text: str | None = None,
+        cwd: str | None = None) -> dict:
     """以子行程執行 argv，回傳 SPEC.md §4 的 ask() dict。
 
     負責與 CLI 無關的部分：以 list 形式 argv 呼叫（絕不經 shell）、
@@ -112,21 +113,29 @@ def run(argv: list, timeout_s: int, cwd: str | None = None) -> dict:
     事件流），由各 adapter 解析萃取後再以 truncate() 套用 max_chars。
     stderr 以原始內容原樣放進 stderr，供 adapter 檢查（例如 opencode 的
     fail-open 偵測）；此鍵只在 base.run() 與 adapter 之間流通。
-    stdin 一律導向 /dev/null：四家 CLI 都會讀 stdin，不關掉會讓行程卡住。
+    stdin 處理（SPEC.md §3.2）：stdin_text 為 None 時導向 /dev/null（detect()
+    這類不送內容的呼叫）；為字串時把內容寫入子行程 stdin 然後關閉——四家 CLI
+    都會讀 stdin，餵完就關閉是實測可行的做法，開著不給東西才會卡住。
     """
+    kwargs = {"capture_output": True, "text": True, "timeout": timeout_s,
+              "cwd": cwd}
+    if stdin_text is None:
+        kwargs["stdin"] = subprocess.DEVNULL
+    else:
+        kwargs["input"] = stdin_text
     start = time.monotonic()
     try:
-        proc = subprocess.run(argv, capture_output=True, text=True,
-                              timeout=timeout_s, stdin=subprocess.DEVNULL,
-                              cwd=cwd)
+        proc = subprocess.run(argv, **kwargs)
     except subprocess.TimeoutExpired:
         return {"ok": False, "text": "", "truncated": False,
                 "error": f"timed out after {timeout_s}s",
-                "stderr": "", "elapsed_s": _elapsed(start)}
+                "stderr": "", "elapsed_s": _elapsed(start),
+                "model_used": None, "usage": None}
     except OSError as exc:
         return {"ok": False, "text": "", "truncated": False,
                 "error": f"failed to run: {exc}",
-                "stderr": "", "elapsed_s": _elapsed(start)}
+                "stderr": "", "elapsed_s": _elapsed(start),
+                "model_used": None, "usage": None}
 
     elapsed = _elapsed(start)
     if proc.returncode != 0:
@@ -136,11 +145,11 @@ def run(argv: list, timeout_s: int, cwd: str | None = None) -> dict:
             error += f": {detail}"
         return {"ok": False, "text": "", "truncated": False,
                 "error": error, "stderr": proc.stderr or "",
-                "elapsed_s": elapsed}
+                "elapsed_s": elapsed, "model_used": None, "usage": None}
 
     return {"ok": True, "text": proc.stdout or "", "truncated": False,
             "error": None, "stderr": proc.stderr or "",
-            "elapsed_s": elapsed}
+            "elapsed_s": elapsed, "model_used": None, "usage": None}
 
 
 def truncate(text: str, max_chars: int) -> tuple:

@@ -166,3 +166,47 @@
   - ` M src/adapters/opencode.py`
   - ` M tests/test_adapters_ask.py`
   - `?? dispatch/packages/009-opencode-readonly.md`
+
+## 2026-08-03 23:33 · 010-stdin-probe.md
+
+- 模式：新開
+- session：`ses_037be15c8ffew0jVNV6beozGTW`
+- 派工前 HEAD：`6c16975b99ceb29f1a26cff4ab6295544d1e3a8a`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - `?? dispatch/packages/010-stdin-probe.md`
+
+## 2026-08-04 00:06 · 011-stdin-transport.md
+
+- 模式：新開
+- session：`ses_0379f4860ffe4aOmF62KKW1ob0`
+- 派工前 HEAD：`d78e45f134de26b93142bccb877b277b99f6017f`（工作區未提交項目 3 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M dispatch/LEDGER.md`
+  - ` M src/adapters/base.py`
+  - ` M src/adapters/claude.py`
+  - ` M src/adapters/codex.py`
+  - ` M src/adapters/gemini.py`
+  - ` M src/adapters/opencode.py`
+  - ` M tests/test_adapters_ask.py`
+  - `?? dispatch/packages/010-stdin-probe.md`
+  - `?? dispatch/packages/011-stdin-transport.md`
+
+## 2026-08-04 00:22 · 012-fix-011.md
+
+- 模式：接續 ses_0379f4860ffe4aOmF62KKW1ob0
+- session：`ses_0379f4860ffe4aOmF62KKW1ob0`
+- 派工前 HEAD：`66b6b9a8f7edbfab011e715be0baeab7491dd535`（工作區未提交項目 10 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M dispatch/LEDGER.md`
+  - ` M src/adapters/base.py`
+  - ` M src/adapters/claude.py`
+  - ` M src/adapters/codex.py`
+  - ` M src/adapters/gemini.py`
+  - ` M src/adapters/opencode.py`
+  - ` M tests/test_adapters_ask.py`
+  - `?? dispatch/packages/010-stdin-probe.md`
+  - `?? dispatch/packages/011-stdin-transport.md`
+  - `?? dispatch/packages/012-fix-011.md`
