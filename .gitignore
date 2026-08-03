@@ -9,5 +9,12 @@ dispatch/tmp/
 # 對公開 repo 的外部讀者是雜訊。
 HANDOFF.md
 
+# 內部規則檔（Frank 2026-08-04 決定）：builder 與 reviewer 的工作規範屬內部文件，
+# 不隨公開程式碼發布。兩個檔仍留在磁碟上——builder 讀的是工作目錄裡的 AGENTS.md，
+# 停止追蹤不影響它運作。⚠️ 離機副本在 private repo imac-system-snapshot 的
+# InternalDocs/council/，那是它們唯一的備份，改完記得同步過去。
+AGENTS.md
+CLAUDE.md
+
 __pycache__/
 *.pyc
