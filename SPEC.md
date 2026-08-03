@@ -157,3 +157,8 @@ adapter 必須在 `detect()` 取得版本，並在 `ask()` 失敗時回傳可讀
 Linux/macOS 支援。
 
 **延後**：Windows 支援、桌面殼打包、討論存檔與匯出、模型參數調整 UI。
+
+⚠️ **加入 Windows 支援時必須一併處理**：`shutil.which()` 在 Windows 會把**當前工作目錄**
+納入搜尋範圍（POSIX 不會）。屆時若使用者從一個含有惡意 `claude.exe` 的目錄啟動 council，
+該執行檔會先於真正的 CLI 被解析到。v1 不支援 Windows，故現在不是漏洞；
+但這一條不解掉就不能宣稱支援 Windows。（2026-08-03 security review 提出）

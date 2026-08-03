@@ -41,3 +41,27 @@
   - `?? dispatch/blocked/`
   - `?? dispatch/packages/`
 - 上一輪卡關報告已歸檔：`dispatch/blocked/20260803-205211.md`
+
+## 2026-08-03 21:14 · 002-adapter-detect.md
+
+- 模式：新開
+- session：`ses_0383cebf0ffed06UiSpywc03uK`
+- 派工前 HEAD：`a4e6c40c57e2bb02cd94ef5e36a05696fd151040`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - `?? dispatch/packages/002-adapter-detect.md`
+  - `?? src/`
+  - `?? tests/`
+
+## 2026-08-03 21:20 · 003-detect-review-fixes.md
+
+- 模式：接續 ses_0383cebf0ffed06UiSpywc03uK
+- session：`ses_0383cebf0ffed06UiSpywc03uK`
+- 派工前 HEAD：`a4e6c40c57e2bb02cd94ef5e36a05696fd151040`（工作區未提交項目 5 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M dispatch/LEDGER.md`
+  - `?? dispatch/packages/002-adapter-detect.md`
+  - `?? dispatch/packages/003-detect-review-fixes.md`
+  - `?? src/`
+  - `?? tests/`
