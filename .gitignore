@@ -1,0 +1,9 @@
+# opencode 原始事件流：量大、且屬過程紀錄。
+# 審查依據是 git diff 與 dispatch/LEDGER.md，不是這些檔案。
+dispatch/sessions/
+
+# builder 的臨時腳本區
+dispatch/tmp/
+
+__pycache__/
+*.pyc
