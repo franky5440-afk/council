@@ -294,3 +294,25 @@
   - ` M src/engine/state.py`
   - ` M tests/test_engine_orchestrator.py`
   - ` M tests/test_engine_state.py`
+
+## 2026-08-05 22:54 · 020-session-store.md
+
+- 模式：新開
+- session：`ses_02d948804ffeU1IXO46y5pjRav`
+- 派工前 HEAD：`fdac57caac9169a00034dbe2fcbacf5c79a9ba42`（工作區未提交項目 0 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - `?? src/engine/sessions.py`
+  - `?? tests/test_engine_sessions.py`
+
+## 2026-08-05 23:02 · 021-fix-020-release-order.md
+
+- 模式：接續 ses_02d948804ffeU1IXO46y5pjRav
+- session：`ses_02d948804ffeU1IXO46y5pjRav`
+- 派工前 HEAD：`fdac57caac9169a00034dbe2fcbacf5c79a9ba42`（工作區未提交項目 4 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M dispatch/LEDGER.md`
+  - `?? dispatch/packages/021-fix-020-release-order.md`
+  - `?? src/engine/sessions.py`
+  - `?? tests/test_engine_sessions.py`
