@@ -48,6 +48,7 @@ class Session:
         return copy.deepcopy(self._snapshot)
 
     def refresh(self) -> dict:
+        """重新呼叫 discussion.status() 更新快照，回傳新快照的深拷貝。"""
         self._snapshot = copy.deepcopy(self.discussion.status())
         return copy.deepcopy(self._snapshot)
 

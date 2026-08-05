@@ -316,3 +316,33 @@
   - `?? dispatch/packages/021-fix-020-release-order.md`
   - `?? src/engine/sessions.py`
   - `?? tests/test_engine_sessions.py`
+
+## 2026-08-05 23:30 · 022-http-server-sse.md
+
+- 模式：新開
+- session：`ses_02d743649ffelhbWr7u7xDq23n`
+- 派工前 HEAD：`c5379279b4a4f81a94a743ed323f2105ed2862f2`（工作區未提交項目 0 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M src/cli.py`
+  - ` M src/engine/orchestrator.py`
+  - ` M src/engine/sessions.py`
+  - `?? src/serve.py`
+  - `?? src/server.py`
+  - `?? tests/test_server.py`
+
+## 2026-08-05 23:58 · 023-fix-022-content-type-gate.md
+
+- 模式：接續 ses_02d743649ffelhbWr7u7xDq23n
+- session：`ses_02d743649ffelhbWr7u7xDq23n`
+- 派工前 HEAD：`c5379279b4a4f81a94a743ed323f2105ed2862f2`（工作區未提交項目 8 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M dispatch/LEDGER.md`
+  - ` M src/cli.py`
+  - ` M src/engine/orchestrator.py`
+  - ` M src/engine/sessions.py`
+  - `?? dispatch/packages/023-fix-022-content-type-gate.md`
+  - `?? src/serve.py`
+  - `?? src/server.py`
+  - `?? tests/test_server.py`

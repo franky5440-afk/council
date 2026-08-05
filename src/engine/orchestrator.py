@@ -74,7 +74,7 @@ def build_arbiter_prompt(discussion) -> str:
 
 
 def run_round(discussion, ask_fn, *, max_chars=DEFAULT_MAX_CHARS,
-              timeout_s=DEFAULT_TIMEOUT_S) -> dict:
+              timeout_s=DEFAULT_TIMEOUT_S, on_record=None) -> dict:
     """跑完整的一輪：所有顧問依序各發言一次，然後結束這一輪，回傳 discussion.status()。
 
     ask_fn(cli=..., prompt=..., model=..., timeout_s=..., max_chars=...) 必須回傳
@@ -105,7 +105,15 @@ def run_round(discussion, ask_fn, *, max_chars=DEFAULT_MAX_CHARS,
                 "model_used": None,
                 "usage": None,
             }
-        discussion.record_speech(seat["seat_id"], result)
+        record = discussion.record_speech(seat["seat_id"], result)
+        if on_record is not None:
+            try:
+                on_record(record)
+            except Exception:
+                # 那一輪的錢已經花掉了：讓事件通知的 bug 中斷整輪，
+                # 會使 end_round() 不被呼叫、討論永遠卡在 in_round 相位，
+                # 代價遠大於漏掉一個事件通知。
+                pass
     discussion.end_round()
     return discussion.status()
 

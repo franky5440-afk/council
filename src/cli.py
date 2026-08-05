@@ -4,7 +4,7 @@
 不會自動進入下一輪、不會存檔、不做互動確認（SPEC.md §5 邊界 1、§8）。
 
 --live 是刻意設計成「明確加上才會花錢」的旗標：不加就是 dry-run，不碰任何真實 CLI。
-本檔案是全 repo 唯一允許 import adapters 的檔案。
+本檔案與 src/serve.py 是全 repo 僅有的兩個允許 import adapters 的檔案。
 """
 
 import argparse
