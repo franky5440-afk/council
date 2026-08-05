@@ -119,16 +119,28 @@ def run_round(discussion, ask_fn, *, max_chars=DEFAULT_MAX_CHARS,
 
 
 def run_arbitration(discussion, ask_fn, *, max_chars=DEFAULT_MAX_CHARS,
-                    timeout_s=DEFAULT_TIMEOUT_S) -> dict:
+                    timeout_s=DEFAULT_TIMEOUT_S, on_start=None) -> dict:
     """執行一次仲裁者呼叫（SPEC.md §6.1）。
 
     ask_fn 契約與 run_round() 完全相同，必填、沒有預設值。
     第一件事是檢查 can_arbitrate()，在任何 ask_fn 呼叫之前——先花錢再發現
     不該花，錢就燒掉了。仲裁跑完就結束，不會自行開下一輪（§5 邊界 1）。
+
+    on_start 是選用的回呼：在 can_arbitrate() 前提檢查通過之後、ask_fn 呼叫
+    之前，不帶參數呼叫一次——「畫面先亮」的事件通知就靠它，前提不成立時
+    自然不會被呼叫。它丟出的例外會被吞掉，不能中斷仲裁（與 run_round()
+    的 on_record 同一條政策）。
     """
     if not discussion.can_arbitrate():
         raise BoundaryError("目前不具備仲裁條件：需要不在進行中的一輪、"
                             "至少完成一輪、且逐字稿中有成功的發言")
+    if on_start is not None:
+        try:
+            on_start()
+        except Exception:
+            # on_start 是「通知」不是「閘門」：前提檢查已經通過，錢還沒花。
+            # 讓一個事件通知的 bug 取消使用者要求的仲裁，代價遠大於漏發一則事件。
+            pass
     seat = discussion.arbiter
     prompt = build_arbiter_prompt(discussion)
     try:

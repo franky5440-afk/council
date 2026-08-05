@@ -299,15 +299,16 @@ class _Handler(BaseHTTPRequestHandler):
         try:
             try:
                 discussion = session.discussion
-                # 事件先發是刻意的：仲裁者拿的是最長的逐字稿，畫面必須先亮。
-                # 前提不成立時該事件已發而仲裁沒發生，緊接著回的是 409。
-                session.append_event(
-                    "arbitration_started",
-                    {"seat_id": discussion.arbiter["seat_id"]})
+                # arbitration_started 由 run_arbitration 的 on_start 回呼發出：
+                # 仍在 ask_fn 之前（畫面先亮），但已在 can_arbitrate() 前提
+                # 檢查之後 ⇒ 前提不成立時不會發出一則沒有結局的事件。
                 record = orchestrator.run_arbitration(
                     discussion, self.server.ask_fn,
                     timeout_s=self.server.timeout_s,
-                    max_chars=self.server.max_chars)
+                    max_chars=self.server.max_chars,
+                    on_start=lambda: session.append_event(
+                        "arbitration_started",
+                        {"seat_id": discussion.arbiter["seat_id"]}))
                 snapshot = session.refresh()
                 session.append_event(
                     "arbitration_finished",

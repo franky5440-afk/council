@@ -1,5 +1,6 @@
 import http.client
 import json
+import socket
 import sys
 import threading
 import time
@@ -431,6 +432,36 @@ class ArbitrationTest(ServerCase):
         self.assertEqual(
             json.loads(resp_body)["status"]["rounds_completed"], 2)
 
+    def test_arbitration_boundary_emits_no_event(self):
+        # 工作包 025 回歸：arbitration_started 必須在 can_arbitrate() 前提
+        # 檢查「之後」才發（on_start 回呼），否則前提不成立時會發出一則
+        # 沒有結局的事件，畫面的佔位永遠清不掉。
+        ask_fn = make_ask_fn()
+        srv, port = self.start(ask_fn=ask_fn)
+        did = self.create_discussion(port)
+        status, _, resp_body = request(
+            "POST", port, f"/api/discussions/{did}/arbitration", {})
+        self.assertEqual(status, 409, resp_body)
+        self.assertEqual(json.loads(resp_body)["code"], "boundary")
+        # SSE 不會自己結束：用短 timeout 一行一行讀，收集已送達的資料，
+        # 斷言其中沒有 arbitration_started。
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
+        conn.request("GET", f"/api/discussions/{did}/events?cursor=0")
+        resp = conn.getresponse()
+        lines = []
+        try:
+            while True:
+                line = resp.readline()
+                if not line:
+                    break
+                lines.append(line)
+        except socket.timeout:
+            pass
+        finally:
+            conn.close()
+        data = b"".join(lines)
+        self.assertNotIn(b"arbitration_started", data)
+
 
 class SseTest(ServerCase):
     def test_event_order_and_monotonic_seqs(self):
@@ -540,6 +571,51 @@ class OnRecordTest(unittest.TestCase):
         status = orchestrator.run_round(d, fake)
         self.assertEqual(status, d.status())
         self.assertEqual(len(fake.calls), 2)
+
+
+class OnStartTest(unittest.TestCase):
+    def test_on_start_fires_before_ask_fn(self):
+        d = state.Discussion("問題", make_seats())
+        orchestrator.run_round(d, make_ask_fn())
+        order = []
+
+        def on_start():
+            order.append("on_start")
+
+        def ask_fn(cli, prompt, model, timeout_s, max_chars):
+            order.append("ask_fn")
+            return make_ask_fn()(cli, prompt, model, timeout_s, max_chars)
+
+        orchestrator.run_arbitration(d, ask_fn, on_start=on_start)
+        self.assertEqual(order, ["on_start", "ask_fn"])
+
+    def test_on_start_not_called_when_boundary(self):
+        d = state.Discussion("問題", make_seats())
+        called = []
+        fake = make_ask_fn()
+        with self.assertRaises(state.BoundaryError):
+            orchestrator.run_arbitration(
+                d, fake, on_start=lambda: called.append(1))
+        self.assertEqual(called, [])
+        self.assertEqual(len(fake.calls), 0)
+
+    def test_on_start_exception_does_not_break_arbitration(self):
+        d = state.Discussion("問題", make_seats())
+        orchestrator.run_round(d, make_ask_fn())
+
+        def boom():
+            raise RuntimeError("boom")
+
+        record = orchestrator.run_arbitration(d, make_ask_fn(), on_start=boom)
+        self.assertEqual(record["ok"], True)
+
+    def test_without_on_start_unchanged(self):
+        d = state.Discussion("問題", make_seats())
+        orchestrator.run_round(d, make_ask_fn())
+        fake = make_ask_fn()
+        record = orchestrator.run_arbitration(d, fake)
+        self.assertEqual(record, d.arbitrations[-1])
+        self.assertEqual(len(fake.calls), 1)
 
 
 class HostWhitelistTest(ServerCase):
