@@ -436,19 +436,32 @@ stderr 出現 `permission requested: external_directory (...); auto-rejecting`�
   本機程序能直接打這個埠，這件事防不了也不該防——那是使用者自己的機器，
   等同他自己的終端機。真正的新風險是惡意網頁：它一行
   `fetch('http://127.0.0.1:<port>/…')` 就能替使用者開一輪、花他的額度。
-  四道機制層檢查，任何一道不過就拒絕：
+  五道機制層檢查，任何一道不過就拒絕：
 
   1. **`Host` 標頭必須是 `127.0.0.1:<port>` 或 `localhost:<port>`**，否則拒絕。
      這道擋的是 DNS rebinding：攻擊者的網域解析到 127.0.0.1 時，
      瀏覽器送出的 `Host` 仍是他的網域。
   2. **`Origin` 標頭若存在，必須是我們自己的來源**，否則拒絕。
-  3. **有 body 的請求，`Content-Type` 必須是 `application/json`**，否則拒絕。
+  3. **所有 `POST` 請求的 `Content-Type` 必須是 `application/json`**，否則拒絕。
      這會強迫跨來源請求先做 CORS preflight，而——
+     ⚠️ **條件是「所有 POST」，不是「有 body 的請求」。** 本條原本寫成後者，
+     而 `/rounds` 與 `/arbitration` 本來就接受空 body ⇒ 惡意網頁的
+     `fetch(url, {method:'POST'})` 是一個不需要 preflight 的 simple request，
+     這道防線對兩個最花錢的端點等於不存在（實測當時真的跑了一輪）。
+     **安全檢查的條件要直接寫出要保護的對象，不要寫成一個剛好在多數情況下等價的代理條件。**
   4. **回應永遠不帶任何 `Access-Control-*` 標頭。** preflight 過不了，
      瀏覽器就替我們把它擋在發出去之前。
+  5. **回傳 HTML 的回應必須拒絕被內嵌**（`X-Frame-Options: DENY` ＋
+     `Content-Security-Policy: frame-ancestors 'none'`，兩者都要，且**必須是回應標頭**）。
+     前四道防的都是「跨來源 `fetch()`」，但內嵌 iframe **繞過的是整組、不是其中任一道**：
+     被框住的頁面自己發出的請求，`Host` 正確、`Origin` 同源、`Content-Type` 由頁面
+     自己設、同源不需要 CORS 標頭——四道全部通過，而攻擊者只需要誘導點擊，
+     從頭到尾不必讀到任何回應、也不必猜到 session id。
+     ⚠️ **`frame-ancestors` 寫在頁面的 `<meta>` 裡無效**，瀏覽器只認回應標頭
+     （`report-uri`、`sandbox` 同理）。頁面內的 `<meta>` CSP 管的是別的事，不能代替本條。
 
-  ⚠️ 這四道是**互相支撐的一組**，不是四個獨立的選項；拿掉任何一道，
-  另外三道各自都有繞過的方法。
+  ⚠️ 這五道是**互相支撐的一組**，不是五個獨立的選項；拿掉任何一道，
+  另外四道各自都有繞過的方法。
 
 - 🔴 **脈絡只接受請求裡的字串本文，伺服器不從路徑讀檔。**
   §3.3 說 `--context` 是本工具唯一能把本機檔案外送的管道。把「讀哪個路徑」
