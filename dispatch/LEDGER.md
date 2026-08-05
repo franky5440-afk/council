@@ -252,3 +252,15 @@
   - `?? dispatch/packages/016-round-orchestration.md`
   - `?? src/engine/orchestrator.py`
   - `?? tests/test_engine_orchestrator.py`
+
+## 2026-08-05 21:32 · 017-wiring-and-cli-entry.md
+
+- 模式：新開
+- session：`ses_02ddfcb39ffeVRWasvW9NeeGRv`
+- 派工前 HEAD：`2a19bc7e0035e69a0dbaac63ca1d8e0c2c6319c7`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - `?? dispatch/packages/017-wiring-and-cli-entry.md`
+  - `?? src/cli.py`
+  - `?? src/engine/wiring.py`
+  - `?? tests/test_engine_wiring.py`
