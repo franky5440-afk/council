@@ -28,6 +28,16 @@ def parse_seat_spec(spec: str, seat_id: str, role: str) -> dict:
     return {"seat_id": seat_id, "cli": cli, "model": model, "role": role}
 
 
+def format_context(files) -> str:
+    """把 [(檔名, 內容), ...] 排成送進 prompt 的脈絡文字（SPEC.md §3.3）。
+
+    純排版，不開檔、不碰檔案系統——讀檔是 cli.py 的事。
+    空 list 回 ""；否則每檔一段，段與段之間以一個空行連接。
+    """
+    blocks = [f"【檔案：{name}】\n{content}" for name, content in files]
+    return "\n\n".join(blocks)
+
+
 def make_ask_fn(registry):
     """產生符合 orchestrator.run_round() 契約的 ask_fn。
 

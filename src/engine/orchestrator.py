@@ -31,7 +31,10 @@ def _render_speech(record: dict) -> str:
 
 def build_prompt(discussion, seat_id: str) -> str:
     """組出要送給某位顧問的完整 prompt。純函式：不修改 discussion、不呼叫 ask_fn。"""
-    blocks = [f"【原始問題】\n{discussion.question}"]
+    blocks = []
+    if discussion.context.strip():
+        blocks.append(f"【專案脈絡】\n{discussion.context}")
+    blocks.append(f"【原始問題】\n{discussion.question}")
     for round_index, round_records in enumerate(discussion.rounds, start=1):
         if not round_records:
             continue

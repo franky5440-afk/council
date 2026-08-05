@@ -151,6 +151,29 @@ class DryRunAskFnTest(unittest.TestCase):
         self.assertTrue(marker["more"])
 
 
+class FormatContextTest(unittest.TestCase):
+    def test_empty_list(self):
+        self.assertEqual(wiring.format_context([]), "")
+
+    def test_single_file(self):
+        out = wiring.format_context([("SPEC.md", "內容一\n內容二")])
+        self.assertEqual(out, "【檔案：SPEC.md】\n內容一\n內容二")
+
+    def test_two_files_order_and_separator(self):
+        out = wiring.format_context([
+            ("a.md", "A內容"),
+            ("b.md", "B內容"),
+        ])
+        self.assertEqual(
+            out,
+            "【檔案：a.md】\nA內容\n\n【檔案：b.md】\nB內容")
+
+    def test_header_not_dash_form(self):
+        out = wiring.format_context([("SPEC.md", "x")])
+        self.assertIn("【檔案：SPEC.md】", out)
+        self.assertNotIn("── SPEC.md ──", out)
+
+
 class WiringRoundIntegrationTest(unittest.TestCase):
     def test_full_round_with_fake_registry(self):
         claude = FakeAdapter()

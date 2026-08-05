@@ -64,7 +64,8 @@ def merge_usage(total: dict, usage) -> dict:
 
 
 class Discussion:
-    def __init__(self, question: str, seats: list, max_rounds: int = DEFAULT_MAX_ROUNDS):
+    def __init__(self, question: str, seats: list,
+                 max_rounds: int = DEFAULT_MAX_ROUNDS, context: str = ""):
         if not isinstance(question, str) or not question.strip():
             raise ValueError("question 不得為空")
         if not isinstance(seats, list) or not (2 <= len(seats) <= 4):
@@ -110,8 +111,11 @@ class Discussion:
             raise ValueError("必須至少一個 advisor")
         if isinstance(max_rounds, bool) or not isinstance(max_rounds, int) or max_rounds < 1:
             raise ValueError("max_rounds 須為 >= 1 的 int")
+        if not isinstance(context, str):
+            raise ValueError("context 須為 str")
         self.question = question
         self.max_rounds = max_rounds
+        self.context = context
         self.seats = copies
         self.advisors = [s for s in copies if s["role"] == ADVISOR]
         self.phase = PHASE_READY

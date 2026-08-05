@@ -184,6 +184,50 @@ class BuildPromptTest(unittest.TestCase):
         orchestrator.build_prompt(d, "a3")
         self.assertEqual(d.status(), before)
 
+    def test_context_block_prepends_and_precedes_question(self):
+        d = state.Discussion("問題", make_seats(), context="脈絡內容")
+        d.begin_round()
+        prompt = orchestrator.build_prompt(d, "a1")
+        self.assertTrue(prompt.startswith("【專案脈絡】"))
+        self.assertLess(prompt.index("【專案脈絡】"), prompt.index("【原始問題】"))
+
+    def test_context_round_task_order(self):
+        d = state.Discussion("問題", make_seats(), context="脈絡內容")
+        d.begin_round()
+        d.record_speech("a1", ok_result(text="第一則\n[立場: 同意] [補充: 無]"))
+        prompt = orchestrator.build_prompt(d, "a2")
+        i_c = prompt.index("【專案脈絡】")
+        i_q = prompt.index("【原始問題】")
+        i_r = prompt.index("【第 1 輪】")
+        i_t = prompt.index("【你的任務】")
+        self.assertLess(i_c, i_q)
+        self.assertLess(i_q, i_r)
+        self.assertLess(i_r, i_t)
+
+    def test_blank_context_no_block(self):
+        for ctx in ("", "   \n  "):
+            d = state.Discussion("問題", make_seats(), context=ctx)
+            d.begin_round()
+            prompt = orchestrator.build_prompt(d, "a1")
+            self.assertNotIn("【專案脈絡】", prompt)
+
+    def test_context_verbatim_in_output(self):
+        ctx = "第一行\n\n  帶縮排與空行\n尾行"
+        d = state.Discussion("問題", make_seats(), context=ctx)
+        d.begin_round()
+        prompt = orchestrator.build_prompt(d, "a1")
+        self.assertIn(f"【專案脈絡】\n{ctx}", prompt)
+        self.assertIn(ctx, prompt)
+
+    def test_run_round_sends_context_to_every_advisor(self):
+        d = state.Discussion("問題", make_seats(), context="每個人都該看到的脈絡")
+        fake = FakeAsk()
+        orchestrator.run_round(d, fake)
+        self.assertEqual(len(fake.calls), 3)
+        for call in fake.calls:
+            self.assertTrue(call["prompt"].startswith("【專案脈絡】"))
+            self.assertIn("每個人都該看到的脈絡", call["prompt"])
+
 
 class RunRoundNormalTest(unittest.TestCase):
     def test_three_advisor_calls_in_order(self):

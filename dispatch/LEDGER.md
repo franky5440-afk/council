@@ -264,3 +264,19 @@
   - `?? src/cli.py`
   - `?? src/engine/wiring.py`
   - `?? tests/test_engine_wiring.py`
+
+## 2026-08-05 22:07 · 018-context-injection.md
+
+- 模式：新開
+- session：`ses_02dc02a43ffeH4r0Tt3KDBGm29`
+- 派工前 HEAD：`44b9441cb101f79630e00c2ef47be23f2d9aae10`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M src/cli.py`
+  - ` M src/engine/orchestrator.py`
+  - ` M src/engine/state.py`
+  - ` M src/engine/wiring.py`
+  - ` M tests/test_engine_orchestrator.py`
+  - ` M tests/test_engine_state.py`
+  - ` M tests/test_engine_wiring.py`
+  - `?? dispatch/packages/018-context-injection.md`

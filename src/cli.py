@@ -13,7 +13,7 @@ import sys
 from adapters import ADAPTERS
 from engine import orchestrator
 from engine import state
-from engine.wiring import dry_run_ask_fn, make_ask_fn, parse_seat_spec
+from engine.wiring import dry_run_ask_fn, format_context, make_ask_fn, parse_seat_spec
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -28,6 +28,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--arbiter", metavar="SPEC", required=True,
         help="仲裁者席次，格式同 --advisor。v1 尚未實作仲裁流程，本席次此輪不會發言")
+    parser.add_argument(
+        "--context", action="append", metavar="PATH",
+        help="要送給顧問的脈絡檔案（UTF-8）；可重複指定，依出現順序送。"
+             "脈絡會隨每席次、每輪重複送進 prompt，消耗的 token 與檔案大小成正比")
     parser.add_argument(
         "--live", action="store_true",
         help="真實呼叫各家 CLI（會消耗訂閱額度）。不加此旗標一律是 dry-run，不碰任何 CLI")
@@ -65,6 +69,35 @@ def _detect_used(seats) -> list:
             problems.append(
                 f"錯誤：CLI「{cli_id}」未安裝（{result.get('error') or 'not found in PATH'}）")
     return problems
+
+
+def _read_context(paths) -> list:
+    """依序以 UTF-8 讀取脈絡檔案，回傳 [(檔名, 內容), ...]。
+
+    任一檔讀不到（不存在、沒權限、不是 UTF-8）即印出可讀錯誤到 stderr 並回傳 None，
+    由 main 以退出碼 1 結束——不要默默跳過那個檔案繼續跑。
+    """
+    files = []
+    for path in paths:
+        try:
+            with open(path, encoding="utf-8") as fh:
+                files.append((path, fh.read()))
+        except FileNotFoundError:
+            print(f"錯誤：找不到脈絡檔案「{path}」。", file=sys.stderr)
+            return None
+        except IsADirectoryError:
+            print(f"錯誤：脈絡路徑「{path}」是目錄，不是檔案。", file=sys.stderr)
+            return None
+        except PermissionError:
+            print(f"錯誤：沒有權限讀取脈絡檔案「{path}」。", file=sys.stderr)
+            return None
+        except UnicodeDecodeError:
+            print(f"錯誤：脈絡檔案「{path}」不是有效的 UTF-8。", file=sys.stderr)
+            return None
+        except OSError as exc:
+            print(f"錯誤：無法讀取脈絡檔案「{path}」：{exc}", file=sys.stderr)
+            return None
+    return files
 
 
 def _print_transcript(discussion) -> None:
@@ -115,7 +148,15 @@ def main(argv=None) -> int:
     else:
         ask_fn = dry_run_ask_fn
 
-    discussion = state.Discussion(args.question, seats)
+    context = ""
+    if args.context:
+        files = _read_context(args.context)
+        if files is None:
+            return 1
+        context = format_context(files)
+        print(f"脈絡：{len(files)} 個檔案、{len(context):,} 字元（每席次、每輪都會重送）")
+
+    discussion = state.Discussion(args.question, seats, context=context)
     status = orchestrator.run_round(discussion, ask_fn,
                                     timeout_s=args.timeout_s,
                                     max_chars=args.max_chars)

@@ -169,6 +169,39 @@ class DiscussionInitTest(unittest.TestCase):
         self.assertEqual([s["seat_id"] for s in d.seats], ["b1", "a1", "arb"])
 
 
+class DiscussionContextTest(unittest.TestCase):
+    def test_default_empty(self):
+        d = state.Discussion("q", make_seats())
+        self.assertEqual(d.context, "")
+
+    def test_preserved_verbatim(self):
+        ctx = "  帶前後空白與\n\t縮排  \n尾行  "
+        d = state.Discussion("q", make_seats(), context=ctx)
+        self.assertEqual(d.context, ctx)
+
+    def test_non_str_raises(self):
+        for bad in (None, 123, ["x"], {"a": 1}):
+            with self.assertRaises(ValueError):
+                state.Discussion("q", make_seats(), context=bad)
+
+    def test_max_rounds_still_third_positional(self):
+        d = state.Discussion("q", make_seats(), 2)
+        self.assertEqual(d.max_rounds, 2)
+        self.assertEqual(d.context, "")
+
+    def test_context_not_in_status(self):
+        d = state.Discussion("q", make_seats(), context="秘密脈絡")
+        st = d.status()
+        self.assertNotIn("context", st)
+
+        def contains(obj):
+            if isinstance(obj, dict):
+                return any(contains(v) for v in obj.values())
+            return obj == "秘密脈絡"
+
+        self.assertFalse(contains(st))
+
+
 class Boundary1Test(unittest.TestCase):
     def test_awaiting_user_blocks_begin(self):
         d = state.Discussion("q", make_seats())
