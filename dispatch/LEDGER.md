@@ -381,3 +381,14 @@
   - `?? src/ui.py`
   - `?? tests/test_ui.py`
 - 上一輪卡關報告已歸檔：`dispatch/blocked/20260806-004841.md`
+
+## 2026-08-06 01:25 · 026-frame-ancestors-header.md
+
+- 模式：接續 ses_02d743649ffelhbWr7u7xDq23n
+- session：`ses_02d743649ffelhbWr7u7xDq23n`
+- 派工前 HEAD：`4ec29402e5b4c1f94d9078d8ea7de3da87a6bdfc`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M src/server.py`
+  - ` M tests/test_ui.py`
+  - `?? dispatch/packages/026-frame-ancestors-header.md`
