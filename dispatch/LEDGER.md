@@ -346,3 +346,38 @@
   - `?? src/serve.py`
   - `?? src/server.py`
   - `?? tests/test_server.py`
+
+## 2026-08-06 00:32 · 024-single-page-ui.md
+
+- 模式：接續 ses_02d743649ffelhbWr7u7xDq23n
+- session：`ses_02d743649ffelhbWr7u7xDq23n`
+- 派工前 HEAD：`29f6a2fb9b88c4bcb8f41e44975b6e569611a763`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M src/server.py`
+  - ` M tests/test_server.py`
+  - `?? dispatch/BLOCKED.md`
+  - `?? dispatch/packages/024-single-page-ui.md`
+  - `?? src/static/`
+  - `?? src/ui.py`
+  - `?? tests/test_ui.py`
+- ⚠ builder 這輪回報卡關（見 dispatch/BLOCKED.md）
+
+## 2026-08-06 00:48 · 025-fix-024-arbitration-event-race.md
+
+- 模式：接續 ses_02d743649ffelhbWr7u7xDq23n
+- session：`ses_02d743649ffelhbWr7u7xDq23n`
+- 派工前 HEAD：`29f6a2fb9b88c4bcb8f41e44975b6e569611a763`（工作區未提交項目 9 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M dispatch/LEDGER.md`
+  - ` M src/engine/orchestrator.py`
+  - ` M src/server.py`
+  - ` M tests/test_server.py`
+  - `?? dispatch/blocked/20260806-004841.md`
+  - `?? dispatch/packages/024-single-page-ui.md`
+  - `?? dispatch/packages/025-fix-024-arbitration-event-race.md`
+  - `?? src/static/`
+  - `?? src/ui.py`
+  - `?? tests/test_ui.py`
+- 上一輪卡關報告已歸檔：`dispatch/blocked/20260806-004841.md`
