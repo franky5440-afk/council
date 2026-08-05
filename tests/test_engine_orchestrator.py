@@ -1,3 +1,4 @@
+import copy
 import sys
 import unittest
 from pathlib import Path
@@ -369,6 +370,108 @@ class RunRoundBoundaryTest(unittest.TestCase):
         d = state.Discussion("問題", make_seats())
         with self.assertRaises(TypeError):
             orchestrator.run_round(d)
+
+
+class BuildArbiterPromptTest(unittest.TestCase):
+    def _two_rounds(self):
+        d = state.Discussion("問題", make_seats(advisor_specs=[
+            ("a1", "claude", None), ("a2", "codex", None)]))
+        d.begin_round()
+        d.record_speech("a1", ok_result(text="第一輪 a1\n[立場: 同意] [補充: 無]"))
+        d.record_speech("a2", ok_result(text="第一輪 a2\n[立場: 同意] [補充: 無]"))
+        d.end_round()
+        d.request_next_round()
+        d.begin_round()
+        d.record_speech("a1", ok_result(text="第二輪 a1\n[立場: 同意] [補充: 無]"))
+        d.record_speech("a2", ok_result(text="第二輪 a2\n[立場: 同意] [補充: 無]"))
+        d.end_round()
+        return d
+
+    def test_includes_question_all_rounds_and_task(self):
+        d = self._two_rounds()
+        prompt = orchestrator.build_arbiter_prompt(d)
+        self.assertIn("問題", prompt)
+        self.assertIn("【原始問題】", prompt)
+        self.assertIn("【第 1 輪】", prompt)
+        self.assertIn("【第 2 輪】", prompt)
+        self.assertIn("第一輪 a1", prompt)
+        self.assertIn("第二輪 a2", prompt)
+        self.assertIn("【你的任務】", prompt)
+        self.assertIn("仲裁者「arb」", prompt)
+
+    def test_shared_prefix_before_task_block(self):
+        d = self._two_rounds()
+        advisor_prompt = orchestrator.build_prompt(d, "a1")
+        arbiter_prompt = orchestrator.build_arbiter_prompt(d)
+        cut_a = advisor_prompt.index("【你的任務】")
+        cut_b = arbiter_prompt.index("【你的任務】")
+        self.assertEqual(advisor_prompt[:cut_a], arbiter_prompt[:cut_b])
+
+    def test_context_prepended(self):
+        d = state.Discussion("問題", make_seats(), context="脈絡")
+        prompt = orchestrator.build_arbiter_prompt(d)
+        self.assertTrue(prompt.startswith("【專案脈絡】"))
+
+    def test_no_stance_marker_required(self):
+        self.assertNotIn("[立場", orchestrator.ARBITER_INSTRUCTION)
+
+
+class RunArbitrationTest(unittest.TestCase):
+    def _finished_discussion(self):
+        d = state.Discussion("問題", make_seats(advisor_specs=[
+            ("a1", "claude", None), ("a2", "codex", None)]))
+        d.begin_round()
+        d.record_speech("a1", ok_result())
+        d.record_speech("a2", ok_result())
+        d.end_round()
+        return d
+
+    def test_refuses_before_any_call(self):
+        d = state.Discussion("問題", make_seats())
+        calls = []
+
+        def tripwire(cli, prompt, model, timeout_s, max_chars):
+            calls.append(1)
+            raise AssertionError("ask_fn 不該被呼叫")
+
+        with self.assertRaises(state.BoundaryError):
+            orchestrator.run_arbitration(d, tripwire)
+        self.assertEqual(calls, [])
+
+    def test_uses_arbiter_seat_and_passes_limits(self):
+        d = self._finished_discussion()
+        fake = FakeAsk()
+        orchestrator.run_arbitration(d, fake, timeout_s=42, max_chars=1234)
+        self.assertEqual(len(fake.calls), 1)
+        call = fake.calls[0]
+        self.assertEqual(call["cli"], "gemini")
+        self.assertEqual(call["model"], "m")
+        self.assertEqual(call["timeout_s"], 42)
+        self.assertEqual(call["max_chars"], 1234)
+        self.assertIn("仲裁者「arb」", call["prompt"])
+
+    def test_returns_the_record(self):
+        d = self._finished_discussion()
+        record = orchestrator.run_arbitration(d, FakeAsk())
+        self.assertIs(record, d.arbitrations[-1])
+
+    def test_ask_fn_exception_recorded(self):
+        d = self._finished_discussion()
+        record = orchestrator.run_arbitration(d, FakeAsk([RuntimeError("boom")]))
+        self.assertFalse(record["ok"])
+        self.assertIn("RuntimeError", record["error"])
+        self.assertIn("boom", record["error"])
+        self.assertEqual(d.status()["usage"]["calls"], 3)
+
+    def test_no_state_mutation(self):
+        d = self._finished_discussion()
+        before = d.status()
+        rounds_before = copy.deepcopy(d.rounds)
+        orchestrator.run_arbitration(d, FakeAsk())
+        after = d.status()
+        self.assertEqual(after["phase"], before["phase"])
+        self.assertEqual(after["rounds_completed"], before["rounds_completed"])
+        self.assertEqual(d.rounds, rounds_before)
 
 
 if __name__ == "__main__":

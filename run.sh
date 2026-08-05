@@ -13,7 +13,8 @@ ADVISORS=(
     "opencode:opencode/nemotron-3-ultra-free"
     "opencode:opencode/ling-3.0-flash-free"
 )
-# 仲裁者。⚠️ 仲裁流程尚未實作，這一席這輪不會發言，因此也不消耗額度。
+# 仲裁者。要仲裁請自行加上 --arbitrate（多餘參數會原樣轉給 cli.py）。
+# ⚠️ 這一席是 claude，一次仲裁會消耗付費額度；不加 --arbitrate 時本席不會被呼叫。
 ARBITER="claude"
 
 LIVE="--live"

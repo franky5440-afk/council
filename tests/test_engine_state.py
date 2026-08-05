@@ -1,3 +1,4 @@
+import copy
 import sys
 import unittest
 from pathlib import Path
@@ -414,6 +415,167 @@ class StatusFieldsTest(unittest.TestCase):
         self._run_round(d, "[立場: 同意] [補充: 有]", "[立場: 同意] [補充: 無]")
         self.assertFalse(d.converged())
         self.assertFalse(d.status()["converged"])
+
+
+class ArbiterAccessTest(unittest.TestCase):
+    def _finished_round(self, d):
+        d.begin_round()
+        d.record_speech("a1", ok_result())
+        d.record_speech("a2", ok_result())
+        d.end_round()
+
+    def test_arbiter_is_the_seat_object(self):
+        d = state.Discussion("q", make_seats())
+        self.assertEqual(d.arbiter["seat_id"], "arb")
+        self.assertEqual(d.arbiter["role"], state.ARBITER)
+        arb_from_seats = next(s for s in d.seats if s["role"] == state.ARBITER)
+        self.assertIs(d.arbiter, arb_from_seats)
+        self.assertNotIn(d.arbiter, d.advisors)
+
+
+class CanArbitrateTest(unittest.TestCase):
+    def _finished_round(self, d, a1_result=None, a2_result=None):
+        d.begin_round()
+        d.record_speech("a1", a1_result or ok_result())
+        d.record_speech("a2", a2_result or ok_result())
+        d.end_round()
+
+    def test_new_discussion_cannot_arbitrate(self):
+        d = state.Discussion("q", make_seats())
+        self.assertFalse(d.can_arbitrate())
+        with self.assertRaises(state.BoundaryError):
+            d.record_arbitration(ok_result())
+
+    def test_in_round_cannot_arbitrate(self):
+        d = state.Discussion("q", make_seats())
+        d.begin_round()
+        self.assertFalse(d.can_arbitrate())
+        with self.assertRaises(state.BoundaryError):
+            d.record_arbitration(ok_result())
+
+    def test_after_full_round_can_arbitrate(self):
+        d = state.Discussion("q", make_seats())
+        self._finished_round(d)
+        self.assertTrue(d.can_arbitrate())
+
+    def test_all_failed_round_cannot_arbitrate(self):
+        d = state.Discussion("q", make_seats())
+        self._finished_round(d, fail_result(), fail_result())
+        self.assertFalse(d.can_arbitrate())
+        with self.assertRaises(state.BoundaryError):
+            d.record_arbitration(ok_result())
+
+    def test_success_in_earlier_round_still_allows(self):
+        d = state.Discussion("q", make_seats())
+        self._finished_round(d)
+        d.request_next_round()
+        self._finished_round(d, fail_result(), fail_result())
+        self.assertTrue(d.can_arbitrate())
+
+    def test_ready_phase_still_allows(self):
+        d = state.Discussion("q", make_seats())
+        self._finished_round(d)
+        d.request_next_round()
+        self.assertEqual(d.phase, state.PHASE_READY)
+        self.assertTrue(d.can_arbitrate())
+
+
+class RecordArbitrationTest(unittest.TestCase):
+    def _finished_round(self, d, a1_result=None, a2_result=None):
+        d.begin_round()
+        d.record_speech("a1", a1_result or ok_result())
+        d.record_speech("a2", a2_result or ok_result())
+        d.end_round()
+
+    def test_record_keys_exact_eight(self):
+        d = state.Discussion("q", make_seats())
+        self._finished_round(d)
+        record = d.record_arbitration(ok_result(text="結論"))
+        self.assertEqual(set(record.keys()),
+                         {"seat_id", "ok", "text", "truncated", "error",
+                          "elapsed_s", "model_used", "usage"})
+        self.assertEqual(record["seat_id"], "arb")
+        self.assertNotIn("stance", record)
+        self.assertNotIn("more", record)
+        self.assertNotIn("violation", record)
+
+    def test_rounds_untouched(self):
+        d = state.Discussion("q", make_seats())
+        self._finished_round(d)
+        before = copy.deepcopy(d.rounds)
+        d.record_arbitration(ok_result(text="結論"))
+        self.assertEqual(len(d.arbitrations), 1)
+        self.assertEqual(d.rounds, before)
+
+    def test_usage_accounted(self):
+        d = state.Discussion("q", make_seats())
+        self._finished_round(d)
+        before = d.status()
+        d.record_arbitration(ok_result(
+            usage={"input_tokens": 100, "output_tokens": 50}))
+        st = d.status()
+        self.assertEqual(st["usage"]["calls"], before["usage"]["calls"] + 1)
+        self.assertEqual(st["usage"]["total"]["input_tokens"], 100)
+        self.assertEqual(st["usage"]["total"]["output_tokens"], 50)
+        self.assertIn("arb", st["usage"]["by_seat"])
+        self.assertEqual(st["usage"]["by_seat"]["arb"]["calls"], 1)
+
+    def test_failed_arbitration_still_counts(self):
+        d = state.Discussion("q", make_seats())
+        self._finished_round(d)
+        before_total = d.status()["usage"]["total"]
+        record = d.record_arbitration(fail_result())
+        self.assertFalse(record["ok"])
+        self.assertEqual(len(d.arbitrations), 1)
+        st = d.status()
+        self.assertEqual(st["usage"]["calls"], 3)
+        self.assertEqual(st["usage"]["total"], before_total)
+
+    def test_arbitration_does_not_pollute_convergence(self):
+        d = state.Discussion("q", make_seats())
+        self._finished_round(d,
+                             ok_result(text="[立場: 同意] [補充: 無]"),
+                             ok_result(text="[立場: 同意] [補充: 無]"))
+        before = d.status()
+        d.record_arbitration(ok_result(text="結論\n[立場: 同意] [補充: 無]"))
+        after = d.status()
+        self.assertEqual(after["converged"], before["converged"])
+        self.assertEqual(after["format_violations"], before["format_violations"])
+
+    def test_arbitration_no_marker_no_violation(self):
+        d = state.Discussion("q", make_seats())
+        self._finished_round(d)
+        before = d.status()["format_violations"]
+        d.record_arbitration(ok_result(text="純文字結論，沒有任何標記行"))
+        self.assertEqual(d.status()["format_violations"], before)
+
+    def test_phase_unchanged(self):
+        d = state.Discussion("q", make_seats())
+        self._finished_round(d)
+        self.assertEqual(d.phase, state.PHASE_AWAITING_USER)
+        d.record_arbitration(ok_result(text="結論"))
+        self.assertEqual(d.phase, state.PHASE_AWAITING_USER)
+
+    def test_double_arbitration(self):
+        d = state.Discussion("q", make_seats())
+        self._finished_round(d)
+        before = d.status()["usage"]["calls"]
+        d.record_arbitration(ok_result(text="第一次"))
+        d.record_arbitration(ok_result(text="第二次"))
+        self.assertEqual(len(d.arbitrations), 2)
+        self.assertEqual(d.status()["usage"]["calls"], before + 2)
+        self.assertEqual(d.status()["usage"]["by_seat"]["arb"]["calls"], 2)
+
+    def test_usage_deep_copied(self):
+        d = state.Discussion("q", make_seats())
+        self._finished_round(d)
+        usage = {"input_tokens": 100}
+        d.record_arbitration(ok_result(usage=usage))
+        usage["input_tokens"] = 999
+        st = d.status()
+        self.assertEqual(st["usage"]["total"]["input_tokens"], 100)
+        self.assertEqual(
+            st["usage"]["by_seat"]["arb"]["usage"]["input_tokens"], 100)
 
 
 if __name__ == "__main__":

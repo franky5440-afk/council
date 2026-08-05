@@ -27,7 +27,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="顧問席次，格式為 claude 或 gemini:gemini-2.5-pro；可重複指定（至少一個）")
     parser.add_argument(
         "--arbiter", metavar="SPEC", required=True,
-        help="仲裁者席次，格式同 --advisor。v1 尚未實作仲裁流程，本席次此輪不會發言")
+        help="仲裁者席次，格式同 --advisor。仲裁者不參與討論；加上 --arbitrate 時，"
+             "該輪結束後會呼叫它一次來整合結論")
+    parser.add_argument(
+        "--arbitrate", action="store_true",
+        help="該輪跑完後追加一次仲裁者呼叫，輸出整合結論（會消耗訂閱額度）")
     parser.add_argument(
         "--context", action="append", metavar="PATH",
         help="要送給顧問的脈絡檔案（UTF-8）；可重複指定，依出現順序送。"
@@ -114,6 +118,18 @@ def _print_transcript(discussion) -> None:
             print(f"（未回應：{error}）" if error else "（未回應）")
 
 
+def _print_arbitration(discussion, record) -> None:
+    print()
+    print(f"── 仲裁結論（{discussion.arbiter['seat_id']}）──")
+    if record["ok"]:
+        print(record["text"])
+        if record["truncated"]:
+            print("（本則發言超過長度上限，已被截斷）")
+    else:
+        error = record["error"]
+        print(f"（未回應：{error}）" if error else "（未回應）")
+
+
 def _print_status(status) -> None:
     usage = status["usage"]
     print()
@@ -143,7 +159,11 @@ def main(argv=None) -> int:
                 print(msg, file=sys.stderr)
             return 1
         advisor_count = sum(1 for s in seats if s["role"] == state.ADVISOR)
-        print(f"⚠️ LIVE 模式：即將對 {advisor_count} 個顧問席次發出真實呼叫，會消耗訂閱額度。")
+        line = (f"⚠️ LIVE 模式：即將對 {advisor_count} 個顧問席次發出真實呼叫，"
+                f"會消耗訂閱額度。")
+        if args.arbitrate:
+            line += "並在該輪結束後追加 1 次仲裁者呼叫。"
+        print(line)
         ask_fn = make_ask_fn(ADAPTERS)
     else:
         ask_fn = dry_run_ask_fn
@@ -157,11 +177,21 @@ def main(argv=None) -> int:
         print(f"脈絡：{len(files)} 個檔案、{len(context):,} 字元（每席次、每輪都會重送）")
 
     discussion = state.Discussion(args.question, seats, context=context)
-    status = orchestrator.run_round(discussion, ask_fn,
-                                    timeout_s=args.timeout_s,
-                                    max_chars=args.max_chars)
+    orchestrator.run_round(discussion, ask_fn,
+                           timeout_s=args.timeout_s,
+                           max_chars=args.max_chars)
     _print_transcript(discussion)
-    _print_status(status)
+    if args.arbitrate:
+        if not discussion.can_arbitrate():
+            print("仲裁：逐字稿中沒有成功的發言，跳過仲裁者呼叫（未消耗額度）。",
+                  file=sys.stderr)
+        else:
+            record = orchestrator.run_arbitration(
+                discussion, ask_fn,
+                timeout_s=args.timeout_s,
+                max_chars=args.max_chars)
+            _print_arbitration(discussion, record)
+    _print_status(discussion.status())
     return 0
 
 

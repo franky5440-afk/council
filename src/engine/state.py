@@ -118,6 +118,8 @@ class Discussion:
         self.context = context
         self.seats = copies
         self.advisors = [s for s in copies if s["role"] == ADVISOR]
+        self.arbiter = next(s for s in copies if s["role"] == ARBITER)
+        self.arbitrations = []
         self.phase = PHASE_READY
         self.rounds = []
         self._usage_total = {}
@@ -191,6 +193,44 @@ class Discussion:
         if self._rounds_completed() >= self.max_rounds and not confirm_over_cap:
             raise BoundaryError("已達輪數上限，需明確確認才能再開一輪")
         self.phase = PHASE_READY
+
+    def can_arbitrate(self) -> bool:
+        """SPEC.md §6.1 的三條前提全部成立才可仲裁。純查詢：不改狀態、不丟例外。"""
+        if self.phase == PHASE_IN_ROUND:
+            return False
+        if self._rounds_completed() < 1:
+            return False
+        return any(rec["ok"] for r in self.rounds for rec in r)
+
+    def record_arbitration(self, result: dict) -> dict:
+        """記錄一次仲裁者呼叫（SPEC.md §6.1）。
+
+        仲裁者不是第四位顧問：不進 rounds、不解析立場標記、不影響收斂或格式違規。
+        """
+        if self.phase == PHASE_IN_ROUND:
+            raise BoundaryError("目前正在進行中的一輪，無法仲裁")
+        if self._rounds_completed() < 1:
+            raise BoundaryError("尚未完成任何一輪，無法仲裁")
+        if not any(rec["ok"] for r in self.rounds for rec in r):
+            raise BoundaryError("逐字稿中沒有任何成功的發言，無法仲裁")
+        seat_id = self.arbiter["seat_id"]
+        record = {
+            "seat_id": seat_id,
+            "ok": bool(result["ok"]),
+            "text": result["text"],
+            "truncated": result["truncated"],
+            "error": result["error"],
+            "elapsed_s": result["elapsed_s"],
+            "model_used": result["model_used"],
+            "usage": copy.deepcopy(result["usage"]),
+        }
+        self.arbitrations.append(record)
+        self._calls_total += 1
+        self._calls_by_seat[seat_id] = self._calls_by_seat.get(seat_id, 0) + 1
+        self._usage_total = merge_usage(self._usage_total, result["usage"])
+        prev = self._usage_by_seat.get(seat_id, {})
+        self._usage_by_seat[seat_id] = merge_usage(prev, result["usage"])
+        return record
 
     def _rounds_completed(self) -> int:
         n = len(self.rounds)
