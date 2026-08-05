@@ -164,6 +164,14 @@ class IndexHtmlStructureTest(unittest.TestCase):
         self.assertEqual(self.source.count("confirm_over_cap"), 1)
         self.assertIn("confirm(", self.source)
 
+    def test_first_round_button_label(self):
+        """一輪都還沒跑過時按鈕不該寫「再一輪」——「再」預設前面有過一輪。
+        ⚠️ 這是結構性斷言（只檢查原始碼字串），JS 的實際行為沒有自動化測試，
+        本專案刻意不建 DOM 測試環境（SPEC.md §7：無建置步驟）。"""
+        self.assertIn("開始討論", self.source)
+        self.assertIn("再一輪（需確認）", self.source)
+        self.assertIn("rounds_completed === 0", self.source)
+
     def test_all_event_kinds_listened(self):
         for kind in EVENT_KINDS:
             self.assertIn(kind, self.source)

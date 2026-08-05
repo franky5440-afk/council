@@ -196,7 +196,13 @@ function renderStatusBar(status) {
     status.converged === true ? "全體顧問都表示沒有補充了 — 可以收斂" : "";
   $("st-violations").textContent =
     status.format_violations > 0 ? "格式違規 " + status.format_violations + " 次" : "";
-  $("btn-round").textContent = status.at_cap === true ? "再一輪（需確認）" : "再一輪";
+  if (status.at_cap === true) {
+    $("btn-round").textContent = "再一輪（需確認）";
+  } else if (status.rounds_completed === 0) {
+    $("btn-round").textContent = "開始討論";
+  } else {
+    $("btn-round").textContent = "再一輪";
+  }
 }
 
 function flattenUsage(obj, prefix) {
