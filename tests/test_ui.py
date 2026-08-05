@@ -64,6 +64,17 @@ class UiRouteTest(unittest.TestCase):
             self.assertFalse(name.lower().startswith("access-control-"),
                              f"回應帶了 CORS 標頭：{name}")
 
+    def test_index_refuses_to_be_framed(self):
+        """SPEC.md §7.2 第 5 道：內嵌 iframe 會讓前四道全部通過（Host 正確、
+        Origin 同源、Content-Type 由頁面自己設、同源不需要 CORS），所以拒絕被
+        內嵌必須靠回應標頭。frame-ancestors 寫在 <meta> 裡無效。"""
+        srv, port = self.start()
+        _, headers, _ = request("GET", port, "/")
+        lowered = {name.lower(): value for name, value in headers.items()}
+        self.assertEqual(lowered.get("x-frame-options"), "DENY")
+        self.assertEqual(lowered.get("content-security-policy"),
+                         "frame-ancestors 'none'")
+
     def test_index_ignores_query_string(self):
         srv, port = self.start()
         status, _, _ = request("GET", port, "/?x=1")

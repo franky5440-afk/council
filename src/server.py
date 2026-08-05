@@ -118,7 +118,7 @@ class _Handler(BaseHTTPRequestHandler):
                 pass
 
     def _gate(self) -> bool:
-        """SPEC.md §7.2 的四道請求守門，順序即規格順序。"""
+        """SPEC.md §7.2 的請求守門（第 1～3 道），順序即規格順序。"""
         port = self.server.server_address[1]
         host_header = self.headers.get("Host")
         if host_header not in (f"127.0.0.1:{port}", f"localhost:{port}"):
@@ -208,6 +208,11 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        # SPEC.md §7.2 第 5 道：前四道防的是跨來源 fetch()，內嵌 iframe 繞過的
+        # 是整組——被框住的頁面自己發的請求，四道全部通過。frame-ancestors 只在
+        # 回應標頭有效，寫在頁面的 <meta> 裡瀏覽器不認。
+        self.send_header("Content-Security-Policy", "frame-ancestors 'none'")
+        self.send_header("X-Frame-Options", "DENY")
         self.end_headers()
         self.wfile.write(body)
 
