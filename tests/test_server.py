@@ -296,8 +296,6 @@ class StatusTest(ServerCase):
         self.assertEqual(status, 404)
         status, _, _ = request("GET", port, "/api/foo")
         self.assertEqual(status, 404)
-        status, _, _ = request("GET", port, "/")
-        self.assertEqual(status, 404)
 
     def test_delete_method_405(self):
         srv, port = self.start()

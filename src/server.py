@@ -11,6 +11,8 @@ import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+import ui
+
 from engine import orchestrator
 from engine import sessions
 from engine import state
@@ -79,7 +81,9 @@ class _Handler(BaseHTTPRequestHandler):
                 return
             kind, arg = _match(urlparse(self.path).path)
             if self.command == "GET":
-                if kind == "discussion":
+                if urlparse(self.path).path == "/":
+                    self._get_index()
+                elif kind == "discussion":
                     self._get_discussion(arg)
                 elif kind == "events":
                     self._get_events(arg)
@@ -195,6 +199,17 @@ class _Handler(BaseHTTPRequestHandler):
             "seats": discussion.seats,
             "status": session.snapshot,
         }
+
+    def _get_index(self) -> None:
+        # no-store：頁面內容在行程啟動時就固定了（ui.py 只讀一次），
+        # 讓瀏覽器也不要留舊的，重啟伺服器就一定看到新版。
+        body = ui.INDEX_HTML
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
 
     def _get_discussion(self, session_id) -> None:
         session = self.server.store.get(session_id)

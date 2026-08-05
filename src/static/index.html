@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'none'; form-action 'none'; base-uri 'none'">
+<title>council</title>
+<style>
+body {
+  font-family: system-ui, sans-serif;
+  margin: 0;
+  background: #fff;
+  color: #222;
+}
+#status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: #f4f4f4;
+  border-bottom: 1px solid #ddd;
+  font-size: 0.9rem;
+}
+main {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 3px;
+  font-weight: bold;
+}
+.badge-live { background: #c00; color: #fff; }
+.badge-gray { background: #ddd; color: #333; }
+.badge-small {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  margin: 0 0.3rem 0.2rem 0;
+  font-weight: normal;
+  font-size: 0.8rem;
+  background: #eee;
+  color: #555;
+  border-radius: 3px;
+}
+label { display: block; margin: 0.75rem 0; }
+textarea, input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+.hint { font-size: 0.85rem; color: #555; }
+#form-error { color: #c00; }
+#discussion-view .kv { font-size: 0.95rem; }
+#seat-list { font-size: 0.9rem; color: #333; }
+.round-heading {
+  font-weight: bold;
+  margin-top: 1rem;
+  padding-bottom: 0.15rem;
+  border-bottom: 1px solid #999;
+}
+.card { border: 1px solid #ccc; border-radius: 4px; margin: 0.5rem 0; padding: 0.5rem 0.75rem; }
+.card-head { font-weight: bold; margin-bottom: 0.25rem; }
+.speech-text { white-space: pre-wrap; }
+.card.arbitration { background: #eef3ff; }
+.card.arbitration.pending { background: #fff8e1; color: #666; font-style: italic; }
+#converged-hint { color: #070; font-weight: bold; }
+#usage-panel {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 1rem;
+  border-top: 1px solid #ddd;
+  font-size: 0.9rem;
+}
+#usage-panel .usage-cost { font-weight: bold; }
+#usage-panel .seat-block { margin: 0.5rem 0 0.25rem 0; }
+button { font-size: 1rem; padding: 0.4rem 1rem; }
+#live-cost-warning { color: #c00; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div id="status-bar">
+  <span id="mode-badge" class="badge badge-gray">模式：尚未確認</span>
+  <span id="st-id"></span>
+  <span id="st-phase"></span>
+  <span id="st-rounds"></span>
+  <span id="converged-hint"></span>
+  <span id="st-violations"></span>
+  <span id="st-busy"></span>
+  <span id="st-sse"></span>
+</div>
+
+<main>
+  <div id="form-view">
+    <h1>建立討論</h1>
+    <div id="form-error"></div>
+    <form id="create-form">
+      <label>問題
+        <textarea id="question" rows="2" required></textarea>
+      </label>
+      <label>顧問（一行一席，顧問 1～3 位，含仲裁者共 2～4 席；格式 &lt;cli&gt;[:&lt;模型&gt;]）
+        <textarea id="advisors" rows="4">opencode:opencode/deepseek-v4-flash-free
+opencode:opencode/nemotron-3-ultra-free
+opencode:opencode/ling-3.0-flash-free</textarea>
+      </label>
+      <label>仲裁者（不參與討論；按「叫仲裁者」才會呼叫它）
+        <input type="text" id="arbiter" value="claude">
+      </label>
+      <label>脈絡（選填；送給每一位顧問，每輪重送）
+        <input type="file" id="context-file">
+        <textarea id="context" rows="4"></textarea>
+        <span class="hint">字元數：<span id="context-chars">0</span>。</span>
+        <span class="hint">檔案由你的瀏覽器讀取後送出內容，伺服器不會去開你的檔案（SPEC.md §7.2）。</span>
+      </label>
+      <button type="submit">建立討論</button>
+    </form>
+  </div>
+
+  <div id="discussion-view" hidden>
+    <h1>討論</h1>
+    <button id="btn-new">開新討論</button>
+    <div class="kv" id="question-text"></div>
+    <div class="kv" id="context-chars-text"></div>
+    <div id="seat-list"></div>
+    <div id="transcript"></div>
+    <div id="action-row">
+      <button id="btn-round">再一輪</button>
+      <button id="btn-arbitration">叫仲裁者</button>
+      <span id="live-cost-warning"></span>
+    </div>
+  </div>
+</main>
+
+<div id="usage-panel">
+  <div id="usage-content"></div>
+</div>
+
+<script>
+"use strict";
+
+var currentId = null;
+var live = null;
+var lastStatus = null;
+var es = null;
+var arbitrationPlaceholder = null;
+
+function $(id) { return document.getElementById(id); }
+
+function clearChildren(el) {
+  while (el.firstChild) {
+    el.removeChild(el.firstChild);
+  }
+}
+
+function updateModeBadge() {
+  var badge = $("mode-badge");
+  var warning = $("live-cost-warning");
+  if (live === null) {
+    badge.textContent = "模式：尚未確認";
+    badge.className = "badge badge-gray";
+    warning.textContent = "";
+  } else if (live === true) {
+    badge.textContent = "LIVE — 每次開輪／仲裁都會消耗訂閱額度";
+    badge.className = "badge badge-live";
+    warning.textContent = "⚠️ 按下去會消耗訂閱額度";
+  } else {
+    badge.textContent = "DRY RUN — 不會呼叫任何 CLI";
+    badge.className = "badge badge-gray";
+    warning.textContent = "";
+  }
+}
+
+function phaseLabel(phase) {
+  if (phase === "ready") { return "準備中"; }
+  if (phase === "in_round") { return "進行中"; }
+  if (phase === "awaiting_user") { return "等你操作"; }
+  return phase;
+}
+
+function setBusy(value) {
+  $("btn-round").disabled = value;
+  $("btn-arbitration").disabled = value;
+  $("st-busy").textContent = value ? "忙碌中" : "";
+}
+
+function renderStatusBar(status) {
+  $("st-phase").textContent = "相位：" + phaseLabel(status.phase);
+  $("st-rounds").textContent = "輪次 " + status.rounds_completed + " / " + status.max_rounds;
+  if (status.at_cap === true) {
+    $("st-rounds").textContent += "（已達上限）";
+  }
+  $("converged-hint").textContent =
+    status.converged === true ? "全體顧問都表示沒有補充了 — 可以收斂" : "";
+  $("st-violations").textContent =
+    status.format_violations > 0 ? "格式違規 " + status.format_violations + " 次" : "";
+  $("btn-round").textContent = status.at_cap === true ? "再一輪（需確認）" : "再一輪";
+}
+
+function flattenUsage(obj, prefix) {
+  var out = {};
+  Object.keys(obj).forEach(function (key) {
+    var path = prefix ? prefix + "." + key : key;
+    var value = obj[key];
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      var sub = flattenUsage(value, path);
+      Object.keys(sub).forEach(function (k) { out[k] = sub[k]; });
+    } else if (typeof value === "number") {
+      out[path] = value;
+    }
+  });
+  return out;
+}
+
+function renderUsageDict(label, usage) {
+  var container = document.createElement("div");
+  if (label) {
+    var head = document.createElement("div");
+    head.textContent = label;
+    container.appendChild(head);
+  }
+  var flat = flattenUsage(usage, "");
+  var keys = Object.keys(flat);
+  keys.sort(function (a, b) {
+    var ac = a.toLowerCase().indexOf("cost") !== -1 ? 0 : 1;
+    var bc = b.toLowerCase().indexOf("cost") !== -1 ? 0 : 1;
+    if (ac !== bc) { return ac - bc; }
+    return a < b ? -1 : (a > b ? 1 : 0);
+  });
+  keys.forEach(function (key) {
+    var row = document.createElement("div");
+    row.textContent = key + "：" + flat[key];
+    if (key.toLowerCase().indexOf("cost") !== -1) {
+      row.className = "usage-cost";
+    }
+    container.appendChild(row);
+  });
+  return container;
+}
+
+function renderUsage(status) {
+  var content = $("usage-content");
+  clearChildren(content);
+  var heading = document.createElement("div");
+  heading.textContent = "用量";
+  content.appendChild(heading);
+  if (!status || !status.usage) { return; }
+  var usage = status.usage;
+  var calls = document.createElement("div");
+  calls.textContent = "總呼叫 " + usage.calls + " 次";
+  content.appendChild(calls);
+  var total = usage.total;
+  if (total && Object.keys(total).length > 0) {
+    content.appendChild(renderUsageDict("全部席次", total));
+  } else {
+    var none = document.createElement("div");
+    none.textContent = "（本次未取得用量統計）";
+    content.appendChild(none);
+  }
+  Object.keys(usage.by_seat).sort().forEach(function (seatId) {
+    var per = usage.by_seat[seatId];
+    var block = document.createElement("div");
+    block.className = "seat-block";
+    var line = document.createElement("div");
+    line.textContent = seatId + "：calls=" + per.calls;
+    block.appendChild(line);
+    if (per.usage && Object.keys(per.usage).length > 0) {
+      block.appendChild(renderUsageDict("", per.usage));
+    }
+    content.appendChild(block);
+  });
+}
+
+function badge(text) {
+  var el = document.createElement("span");
+  el.className = "badge badge-small";
+  el.textContent = text;
+  return el;
+}
+
+function addSpeechCard(rec) {
+  var card = document.createElement("div");
+  card.className = "card";
+  var head = document.createElement("div");
+  head.className = "card-head";
+  head.textContent = rec.seat_id;
+  card.appendChild(head);
+  if (rec.stance) { card.appendChild(badge("立場: " + rec.stance)); }
+  if (rec.more === false) { card.appendChild(badge("補充: 無")); }
+  if (rec.truncated) { card.appendChild(badge("已截斷")); }
+  if (rec.violation) { card.appendChild(badge("格式違規")); }
+  if (rec.model_used === null) { card.appendChild(badge("模型未經確認")); }
+  if (typeof rec.elapsed_s === "number") {
+    card.appendChild(badge(rec.elapsed_s.toFixed(1) + " 秒"));
+  }
+  var body = document.createElement("div");
+  body.className = "speech-text";
+  if (rec.ok === true) {
+    body.textContent = rec.text;
+  } else {
+    body.textContent = rec.error ? "未回應：" + rec.error : "未回應";
+  }
+  card.appendChild(body);
+  $("transcript").appendChild(card);
+}
+
+function addRoundHeading(round) {
+  var h = document.createElement("div");
+  h.className = "round-heading";
+  h.textContent = "第 " + round + " 輪";
+  $("transcript").appendChild(h);
+}
+
+function addArbitrationPlaceholder(seatId) {
+  var el = document.createElement("div");
+  el.className = "card arbitration pending";
+  el.textContent = "仲裁者 " + seatId + " 正在讀完整逐字稿…";
+  $("transcript").appendChild(el);
+  return el;
+}
+
+function clearArbitrationPlaceholder() {
+  if (arbitrationPlaceholder && arbitrationPlaceholder.parentNode) {
+    arbitrationPlaceholder.parentNode.removeChild(arbitrationPlaceholder);
+  }
+  arbitrationPlaceholder = null;
+}
+
+function addArbitrationCard(rec) {
+  var card = document.createElement("div");
+  card.className = "card arbitration";
+  var head = document.createElement("div");
+  head.className = "card-head";
+  head.textContent = "仲裁者 — 不參與輪替、不計入收斂（" + rec.seat_id + "）";
+  card.appendChild(head);
+  var body = document.createElement("div");
+  body.className = "speech-text";
+  if (rec.ok === true) {
+    body.textContent = rec.text;
+  } else {
+    body.textContent = rec.error ? "未回應：" + rec.error : "未回應";
+  }
+  card.appendChild(body);
+  $("transcript").appendChild(card);
+}
+
+function showFormError(message) {
+  $("form-error").textContent = message;
+}
+
+function showForm() {
+  closeSse();
+  currentId = null;
+  lastStatus = null;
+  $("st-id").textContent = "";
+  $("st-phase").textContent = "";
+  $("st-rounds").textContent = "";
+  $("converged-hint").textContent = "";
+  $("st-violations").textContent = "";
+  $("st-sse").textContent = "";
+  setBusy(false);
+  $("form-view").hidden = false;
+  $("discussion-view").hidden = true;
+  renderUsage(null);
+}
+
+function renderDiscussion(data) {
+  currentId = data.id;
+  $("st-id").textContent = "討論 id：" + data.id;
+  $("question-text").textContent = "原始問題：" + data.question;
+  $("context-chars-text").textContent = "脈絡字元數：" + data.context_chars;
+  var seats = $("seat-list");
+  clearChildren(seats);
+  data.seats.forEach(function (seat) {
+    var row = document.createElement("div");
+    row.textContent = seat.seat_id + " — " + seat.cli +
+      (seat.model ? "：" + seat.model : "") +
+      "（" + (seat.role === "arbiter" ? "仲裁者" : "顧問") + "）";
+    seats.appendChild(row);
+  });
+  clearChildren($("transcript"));
+  setBusy(data.busy === true);
+  renderStatusBar(data.status);
+  renderUsage(data.status);
+  lastStatus = data.status;
+}
+
+function postJson(path, body) {
+  return fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  }).then(function (resp) {
+    return resp.json().then(function (data) {
+      return { status: resp.status, data: data };
+    }).catch(function () {
+      return { status: resp.status, data: null };
+    });
+  });
+}
+
+function refreshDiscussion() {
+  if (!currentId) { return; }
+  fetch("/api/discussions/" + encodeURIComponent(currentId)).then(function (resp) {
+    return resp.json();
+  }).then(function (data) {
+    if (data && data.id) {
+      live = data.live;
+      updateModeBadge();
+      setBusy(data.busy === true);
+      renderStatusBar(data.status);
+      renderUsage(data.status);
+      lastStatus = data.status;
+    }
+  }).catch(function () {
+    $("st-sse").textContent = "無法連上伺服器（它可能已經停止）";
+  });
+}
+
+function runAction(path, body) {
+  setBusy(true);
+  postJson(path, body).then(function (result) {
+    if (result.status === 200) {
+      setBusy(false);
+      live = result.data.live;
+      updateModeBadge();
+      renderStatusBar(result.data.status);
+      renderUsage(result.data.status);
+      lastStatus = result.data.status;
+    } else if (result.status === 409) {
+      setBusy(false);
+      clearArbitrationPlaceholder();
+      if (result.data && result.data.code === "busy") {
+        $("st-sse").textContent = "另一個分頁正在跑這個討論。";
+        refreshDiscussion();
+      } else {
+        $("st-sse").textContent =
+          (result.data && result.data.error) || "已達停止邊界，無法執行";
+      }
+    } else {
+      setBusy(false);
+      clearArbitrationPlaceholder();
+      $("st-sse").textContent =
+        (result.data && result.data.error) || ("HTTP " + result.status);
+    }
+  }).catch(function () {
+    setBusy(false);
+    $("st-sse").textContent = "無法連上伺服器（它可能已經停止）";
+  });
+}
+
+function connectSse(id) {
+  closeSse();
+  es = new EventSource("/api/discussions/" + encodeURIComponent(id) + "/events?cursor=0");
+  es.onopen = function () {
+    $("st-sse").textContent = "";
+  };
+  es.onerror = function () {
+    $("st-sse").textContent = "連線中斷，瀏覽器會自動重連";
+  };
+  es.addEventListener("round_started", function (ev) {
+    var data = JSON.parse(ev.data);
+    setBusy(true);
+    addRoundHeading(data.round);
+  });
+  es.addEventListener("speech", function (ev) {
+    addSpeechCard(JSON.parse(ev.data));
+  });
+  es.addEventListener("round_finished", function (ev) {
+    var data = JSON.parse(ev.data);
+    setBusy(false);
+    renderStatusBar(data.status);
+    renderUsage(data.status);
+    lastStatus = data.status;
+  });
+  es.addEventListener("arbitration_started", function (ev) {
+    var data = JSON.parse(ev.data);
+    setBusy(true);
+    arbitrationPlaceholder = addArbitrationPlaceholder(data.seat_id);
+  });
+  es.addEventListener("arbitration_finished", function (ev) {
+    var data = JSON.parse(ev.data);
+    setBusy(false);
+    clearArbitrationPlaceholder();
+    addArbitrationCard(data.record);
+    renderUsage(data.status);
+    lastStatus = data.status;
+  });
+  es.addEventListener("error", function (ev) {
+    if (!ev.data) { return; }   // 傳輸層斷線也叫 error，那個由 onerror 負責
+    $("st-sse").textContent = "收到 error 事件";
+  });
+}
+
+function closeSse() {
+  if (es) {
+    es.close();
+    es = null;
+  }
+}
+
+function openDiscussion(id) {
+  closeSse();
+  clearChildren($("transcript"));
+  fetch("/api/discussions/" + encodeURIComponent(id)).then(function (resp) {
+    if (resp.status === 404) {
+      location.hash = "";
+      showForm();
+      showFormError("找不到這個討論。伺服器一重啟，記憶體裡的討論就消失了（SPEC.md §7.1）。");
+      return null;
+    }
+    return resp.json().then(function (data) {
+      if (!resp.ok) {
+        location.hash = "";
+        showForm();
+        showFormError((data && data.error) || ("HTTP " + resp.status));
+        return null;
+      }
+      return data;
+    });
+  }).then(function (data) {
+    if (!data) { return; }
+    live = data.live;
+    updateModeBadge();
+    $("form-view").hidden = true;
+    $("discussion-view").hidden = false;
+    renderDiscussion(data);
+    connectSse(data.id);
+  }).catch(function () {
+    $("st-sse").textContent = "無法連上伺服器（它可能已經停止）";
+  });
+}
+
+function onLoad() {
+  var id = location.hash.slice(1);
+  if (id) {
+    openDiscussion(id);
+  } else {
+    showForm();
+  }
+}
+
+$("create-form").addEventListener("submit", function (event) {
+  event.preventDefault();
+  $("form-error").textContent = "";
+  var advisors = [];
+  $("advisors").value.split("\n").forEach(function (line) {
+    var trimmed = line.trim();
+    if (trimmed) { advisors.push(trimmed); }
+  });
+  var question = $("question").value.trim();
+  var arbiter = $("arbiter").value.trim();
+  var context = $("context").value;
+  postJson("/api/discussions", {
+    question: question,
+    advisors: advisors,
+    arbiter: arbiter,
+    context: context
+  }).then(function (result) {
+    if (result.status === 200 && result.data && result.data.id) {
+      location.hash = result.data.id;
+    } else {
+      showFormError((result.data && result.data.error) || ("HTTP " + result.status));
+    }
+  });
+});
+
+$("btn-round").addEventListener("click", function () {
+  var body = {};
+  if (lastStatus && lastStatus.at_cap === true) {
+    var ok = window.confirm("已達 " + lastStatus.max_rounds +
+      " 輪上限。再開一輪會再向每一位顧問各發出一次呼叫（會花錢）。確定要繼續嗎？");
+    if (!ok) { return; }
+    body = {confirm_over_cap: true};
+  }
+  runAction("/api/discussions/" + encodeURIComponent(currentId) + "/rounds", body);
+});
+
+$("btn-arbitration").addEventListener("click", function () {
+  runAction("/api/discussions/" + encodeURIComponent(currentId) + "/arbitration", {});
+});
+
+$("btn-new").addEventListener("click", function () {
+  location.hash = "";
+});
+
+$("context-file").addEventListener("change", function () {
+  var file = this.files && this.files[0];
+  if (!file) { return; }
+  var reader = new FileReader();
+  reader.onload = function () {
+    $("context").value = reader.result;
+    $("context-chars").textContent = reader.result.length;
+  };
+  reader.readAsText(file);
+});
+
+$("context").addEventListener("input", function () {
+  $("context-chars").textContent = this.value.length;
+});
+
+window.addEventListener("hashchange", onLoad);
+onLoad();
+</script>
+</body>
+</html>

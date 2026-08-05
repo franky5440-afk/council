@@ -1,0 +1,162 @@
+import json
+import sys
+import threading
+import unittest
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+SRC_DIR = Path(__file__).resolve().parent.parent / "src"
+sys.path.insert(0, str(SRC_DIR))
+
+import server  # noqa: E402
+import ui  # noqa: E402
+
+STATIC_DIR = SRC_DIR / "static"
+INDEX_PATH = STATIC_DIR / "index.html"
+
+CSP_EXACT = ("default-src 'none'; script-src 'unsafe-inline'; "
+             "style-src 'unsafe-inline'; connect-src 'self'; img-src 'none'; "
+             "form-action 'none'; base-uri 'none'")
+
+EVENT_KINDS = ("round_started", "speech", "round_finished",
+               "arbitration_started", "arbitration_finished", "error")
+
+
+def request(method, port, path, body=None, headers=None):
+    url = f"http://127.0.0.1:{port}{path}"
+    data = None
+    req_headers = {}
+    if body is not None:
+        data = json.dumps(body).encode("utf-8")
+        req_headers["Content-Type"] = "application/json"
+    if headers:
+        req_headers.update(headers)
+    req = urllib.request.Request(url, data=data, headers=req_headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return resp.status, dict(resp.headers), resp.read()
+    except urllib.error.HTTPError as exc:
+        return exc.code, dict(exc.headers), exc.read()
+
+
+class UiRouteTest(unittest.TestCase):
+    def start(self):
+        srv = server.build_server(ask_fn=lambda *a, **k: None, live=False, port=0)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        self.addCleanup(srv.shutdown)
+        self.addCleanup(srv.server_close)
+        return srv, srv.server_address[1]
+
+    def test_index_served_at_root(self):
+        srv, port = self.start()
+        status, headers, body = request("GET", port, "/")
+        self.assertEqual(status, 200)
+        self.assertEqual(headers.get("Content-Type"), "text/html; charset=utf-8")
+        self.assertEqual(headers.get("Cache-Control"), "no-store")
+        self.assertIn("Content-Length", headers)
+        self.assertEqual(body, ui.INDEX_HTML)
+
+    def test_index_no_access_control_headers(self):
+        srv, port = self.start()
+        _, headers, _ = request("GET", port, "/")
+        for name in headers:
+            self.assertFalse(name.lower().startswith("access-control-"),
+                             f"回應帶了 CORS 標頭：{name}")
+
+    def test_index_ignores_query_string(self):
+        srv, port = self.start()
+        status, _, _ = request("GET", port, "/?x=1")
+        self.assertEqual(status, 200)
+
+    def test_index_only_exact_root_path(self):
+        srv, port = self.start()
+        for path in ("/index.html", "/static/index.html", "/../src/server.py"):
+            status, _, _ = request("GET", port, path)
+            self.assertEqual(status, 404, f"{path} 應回 404")
+
+    def test_double_slash_normalized_by_stdlib(self):
+        """http.server 的 parse_request() 內建 gh-87389 的 open redirect 防護，
+        在進入 handler 之前就把開頭的多個 / 併成一個 ⇒ // 到我們手上時
+        self.path 已經是 /。這不是我們的路由放寬：唯一的靜態路由仍然是
+        == "/"，沒有任何「路徑→檔案」的對映。此測試釘住 stdlib 的這個行為，
+        哪天它改了要有人看一眼。"""
+        srv, port = self.start()
+        for path in ("//", "///"):
+            status, _, _ = request("GET", port, path)
+            self.assertEqual(status, 200, f"{path} 應回 200")
+
+    def test_index_still_gated_by_host(self):
+        srv, port = self.start()
+        status, _, _ = request(
+            "GET", port, "/", headers={"Host": "evil.example.com"})
+        self.assertEqual(status, 403)
+
+    def test_post_to_root_404(self):
+        srv, port = self.start()
+        status, _, _ = request("POST", port, "/", {})
+        self.assertEqual(status, 404)
+
+    def test_discussion_api_not_shadowed(self):
+        srv, port = self.start()
+        status, _, _ = request("GET", port, "/api/discussions/no-such")
+        self.assertEqual(status, 404)
+
+
+class UiModuleTest(unittest.TestCase):
+    def test_index_html_is_nonempty_bytes(self):
+        self.assertIsInstance(ui.INDEX_HTML, bytes)
+        self.assertGreater(len(ui.INDEX_HTML), 0)
+
+    def test_ui_module_imports_nothing_forbidden(self):
+        source = Path(ui.__file__).read_text(encoding="utf-8")
+        for word in ("server", "engine", "adapters", "subprocess"):
+            self.assertNotIn(word, source)
+
+
+class IndexHtmlStructureTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.source = INDEX_PATH.read_text(encoding="utf-8")
+
+    def test_no_html_injection_strings(self):
+        for word in ("innerHTML", "outerHTML", "insertAdjacentHTML",
+                     "document.write", "eval(", "new Function", "Function("):
+            self.assertNotIn(word, self.source)
+
+    def test_no_http_urls(self):
+        for word in ("http://", "https://"):
+            self.assertNotIn(word, self.source)
+
+    def test_no_browser_storage(self):
+        for word in ("localStorage", "sessionStorage", "indexedDB",
+                     "document.cookie"):
+            self.assertNotIn(word, self.source)
+
+    def test_no_timers(self):
+        for word in ("setInterval", "setTimeout"):
+            self.assertNotIn(word, self.source)
+
+    def test_uses_textcontent(self):
+        self.assertIn("textContent", self.source)
+
+    def test_csp_meta_exact(self):
+        self.assertIn("Content-Security-Policy", self.source)
+        self.assertIn(f'content="{CSP_EXACT}"', self.source)
+
+    def test_single_inline_script_and_style(self):
+        self.assertEqual(self.source.count("<script"), 1)
+        self.assertEqual(self.source.count("<style"), 1)
+        self.assertNotIn("<script src=", self.source)
+
+    def test_confirm_over_cap_once_and_uses_confirm(self):
+        self.assertEqual(self.source.count("confirm_over_cap"), 1)
+        self.assertIn("confirm(", self.source)
+
+    def test_all_event_kinds_listened(self):
+        for kind in EVENT_KINDS:
+            self.assertIn(kind, self.source)
+
+
+if __name__ == "__main__":
+    unittest.main()
