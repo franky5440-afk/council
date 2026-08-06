@@ -403,3 +403,15 @@
   - ` M src/static/index.html`
   - ` M tests/test_ui.py`
   - `?? dispatch/packages/027-first-round-button-label.md`
+
+## 2026-08-06 22:24 · 028-usage-panel-and-copy.md
+
+- 模式：新開
+- session：`ses_02889c841ffeE190hJxC7irgVv`
+- 派工前 HEAD：`c15ce582e136d78e15ce38594e4329fea71c92e6`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M README.md`
+  - ` M src/static/index.html`
+  - ` M tests/test_ui.py`
+  - `?? dispatch/packages/028-usage-panel-and-copy.md`
