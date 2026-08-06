@@ -74,7 +74,6 @@ textarea, input[type="text"] {
   border-top: 1px solid #ddd;
   font-size: 0.9rem;
 }
-#usage-panel .usage-cost { font-weight: bold; }
 #usage-panel .seat-block { margin: 0.5rem 0 0.25rem 0; }
 button { font-size: 1rem; padding: 0.4rem 1rem; }
 #live-cost-warning { color: #c00; font-weight: bold; }
@@ -101,10 +100,11 @@ button { font-size: 1rem; padding: 0.4rem 1rem; }
       <label>問題
         <textarea id="question" rows="2" required></textarea>
       </label>
-      <label>顧問（一行一席，顧問 1～3 位，含仲裁者共 2～4 席；格式 &lt;cli&gt;[:&lt;模型&gt;]）
+      <label>顧問（一行一席，由上到下就是發言順序；顧問 1～3 位，含仲裁者共 2～4 席；格式 &lt;cli&gt;[:&lt;模型&gt;]）
         <textarea id="advisors" rows="4">opencode:opencode/deepseek-v4-flash-free
 opencode:opencode/nemotron-3-ultra-free
 opencode:opencode/ling-3.0-flash-free</textarea>
+        <span class="hint">可用的 cli：claude／codex／gemini／opencode，可以混搭。模型清單用各 CLI 自己的指令查（opencode 是 <code>opencode models</code>）。換模型就是改這一欄的文字，不必動任何程式碼。</span>
       </label>
       <label>仲裁者（不參與討論；按「叫仲裁者」才會呼叫它）
         <input type="text" id="arbiter" value="claude">
@@ -199,7 +199,7 @@ function renderStatusBar(status) {
   if (status.at_cap === true) {
     $("btn-round").textContent = "再一輪（需確認）";
   } else if (status.rounds_completed === 0) {
-    $("btn-round").textContent = "開始討論";
+    $("btn-round").textContent = "開始討論（可延續數輪）";
   } else {
     $("btn-round").textContent = "再一輪";
   }
@@ -220,6 +220,12 @@ function flattenUsage(obj, prefix) {
   return out;
 }
 
+// 金額不進畫面：council 不呼叫任何模型 API，這些數字是各家 CLI 依 API 定價
+// 換算的參考值，顯示出來會讓人以為 council 在跟他收費（Frank 實測回報）。
+function isCostKey(key) {
+  return key.toLowerCase().indexOf("cost") !== -1;
+}
+
 function renderUsageDict(label, usage) {
   var container = document.createElement("div");
   if (label) {
@@ -228,19 +234,13 @@ function renderUsageDict(label, usage) {
     container.appendChild(head);
   }
   var flat = flattenUsage(usage, "");
-  var keys = Object.keys(flat);
-  keys.sort(function (a, b) {
-    var ac = a.toLowerCase().indexOf("cost") !== -1 ? 0 : 1;
-    var bc = b.toLowerCase().indexOf("cost") !== -1 ? 0 : 1;
-    if (ac !== bc) { return ac - bc; }
-    return a < b ? -1 : (a > b ? 1 : 0);
+  var keys = Object.keys(flat).filter(function (key) {
+    return !isCostKey(key);
   });
+  keys.sort();
   keys.forEach(function (key) {
     var row = document.createElement("div");
     row.textContent = key + "：" + flat[key];
-    if (key.toLowerCase().indexOf("cost") !== -1) {
-      row.className = "usage-cost";
-    }
     container.appendChild(row);
   });
   return container;
@@ -250,21 +250,20 @@ function renderUsage(status) {
   var content = $("usage-content");
   clearChildren(content);
   var heading = document.createElement("div");
-  heading.textContent = "用量";
+  heading.textContent = "用量（token 消耗）";
   content.appendChild(heading);
+  var note = document.createElement("div");
+  note.className = "hint";
+  note.textContent = "council 不呼叫任何模型 API：這些數字由你自己的 CLI 回報，"
+    + "用掉的是那個 CLI 的訂閱額度。";
+  content.appendChild(note);
   if (!status || !status.usage) { return; }
   var usage = status.usage;
   var calls = document.createElement("div");
   calls.textContent = "總呼叫 " + usage.calls + " 次";
   content.appendChild(calls);
-  var total = usage.total;
-  if (total && Object.keys(total).length > 0) {
-    content.appendChild(renderUsageDict("全部席次", total));
-  } else {
-    var none = document.createElement("div");
-    none.textContent = "（本次未取得用量統計）";
-    content.appendChild(none);
-  }
+  // 各席次分列排在累加區之前：累加區是同名欄位各自相加的混合體，
+  // 先看到它會把它讀成總計。
   Object.keys(usage.by_seat).sort().forEach(function (seatId) {
     var per = usage.by_seat[seatId];
     var block = document.createElement("div");
@@ -277,6 +276,25 @@ function renderUsage(status) {
     }
     content.appendChild(block);
   });
+  var total = usage.total;
+  if (total && Object.keys(total).length > 0) {
+    content.appendChild(renderUsageDict("各席次同名欄位累加", total));
+    var mixed = document.createElement("div");
+    mixed.className = "hint";
+    mixed.textContent = "⚠️ 各家 CLI 的欄位名稱不同（opencode 是 tokens.*，"
+      + "claude 是 input_tokens／output_tokens），上面這一區只是把名稱相同的欄位"
+      + "各自相加，不是所有席次的總和。要看真實用量請看上面各席次分列。";
+    content.appendChild(mixed);
+  } else {
+    var none = document.createElement("div");
+    none.textContent = "（本次未取得用量統計）";
+    content.appendChild(none);
+  }
+  var cacheNote = document.createElement("div");
+  cacheNote.className = "hint";
+  cacheNote.textContent = "claude 的輸入多半計在 cache_creation_input_tokens，"
+    + "input_tokens 顯示得很小是正常的，不代表逐字稿沒送進去。";
+  content.appendChild(cacheNote);
 }
 
 function badge(text) {

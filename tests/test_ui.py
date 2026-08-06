@@ -168,9 +168,27 @@ class IndexHtmlStructureTest(unittest.TestCase):
         """一輪都還沒跑過時按鈕不該寫「再一輪」——「再」預設前面有過一輪。
         ⚠️ 這是結構性斷言（只檢查原始碼字串），JS 的實際行為沒有自動化測試，
         本專案刻意不建 DOM 測試環境（SPEC.md §7：無建置步驟）。"""
-        self.assertIn("開始討論", self.source)
+        self.assertIn("開始討論（可延續數輪）", self.source)
         self.assertIn("再一輪（需確認）", self.source)
         self.assertIn("rounds_completed === 0", self.source)
+
+    def test_usage_panel_shows_no_money(self):
+        """Frank 實測回報：畫面出現金額會讓人以為 council 去打了 API 在收費。
+        實際上 council 不呼叫任何模型 API，金額只是各家 CLI 依 API 定價換算的
+        參考值 ⇒ 一律不顯示，只顯示 token 數。
+        ⚠️ 這是結構性斷言（只檢查原始碼字串），JS 的實際行為沒有自動化測試，
+        本專案刻意不建 DOM 測試環境（SPEC.md §7：無建置步驟）。"""
+        self.assertNotIn("usage-cost", self.source)
+        self.assertIn("isCostKey", self.source)
+
+    def test_usage_total_is_labelled_as_not_a_sum(self):
+        """merge_usage() 按鍵名相加，而 opencode 與 claude 的鍵名完全不同
+        ⇒ total 區塊沒有任何欄位代表所有席次的真正總量，必須在畫面上講明白。"""
+        self.assertIn("不是所有席次的總和", self.source)
+
+    def test_advisor_order_is_documented(self):
+        """席次順序就是發言順序，這件事只有實作知道，使用者看不出來。"""
+        self.assertIn("由上到下就是發言順序", self.source)
 
     def test_all_event_kinds_listened(self):
         for kind in EVENT_KINDS:
