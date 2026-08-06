@@ -237,7 +237,7 @@ argv 上只剩固定的簡短指示與旗標，長度風險已經消失；使用
 | `claude` | `claude -p <prompt> --output-format json --tools ""` | `--model` | `--tools ""` 停用全部內建工具 | JSON 的 `result` |
 | `codex` | `codex exec --sandbox read-only --skip-git-repo-check --output-last-message <檔案> <prompt>` | `-m` | `--sandbox read-only`，`-C` 圈住目錄 | 該檔案的純文字 |
 | `gemini` | `gemini -p <prompt> -o json --approval-mode plan --skip-trust` | `-m` | `--approval-mode plan` | JSON 的 `response` |
-| `opencode` | `opencode run --format json --agent advisor <prompt>` | `-m`（`provider/model`） | 自訂 agent 逐項 `deny`（見 §4.2） | 事件流中 `type=="text"` |
+| `opencode` | `opencode run --format json --agent advisor <prompt>` | `-m`（`provider/model`） | 自訂 agent：`"*": deny` 後單開 `websearch`（見 §4.2） | 事件流中 `type=="text"` |
 
 2026-08-03 **實機呼叫**四家各一次驗證上表；真實輸出樣本存於 `tests/fixtures/`，
 擷取過程中發現的坑記於該目錄的 `README.md`，實作前必讀。其中兩點會直接讓呼叫失敗：
@@ -280,12 +280,51 @@ bash 寫檔到該目錄**之外**，檔案確實建立。
 正是本節禁止依賴的東西。換一個不那麼配合的模型就不成立。
 
 **正解**：由 council 在當次的暫存目錄內寫一個自訂 agent 定義
-`<暫存目錄>/.opencode/agents/advisor.md`，以 frontmatter 的 `permission` 區塊逐項
-`deny`（至少 `bash`、`edit`、`webfetch`、`task`、`websearch`），再以 `--agent advisor` 執行。
+`<暫存目錄>/.opencode/agents/advisor.md`，以 frontmatter 的 `permission` 區塊
+**先用萬用字元全部關掉，再單獨開需要的那一個**，再以 `--agent advisor` 執行：
 
-實測此法確為機制層生效：事件流中**完全沒有 bash 工具呼叫**（該工具不存在），
-stderr 出現 `permission requested: external_directory (...); auto-rejecting`，
-目標檔案未被建立。
+```yaml
+permission:
+  "*": deny
+  websearch: allow
+```
+
+🔴 **必須是「全關再單開」，不是「逐項 deny」。** 2026-08-06 之前這裡是一份列舉清單
+（`bash`／`edit`／`webfetch`／`task`／`todowrite`／`websearch`／`lsp`／`skill`），
+於是**沒被列到的工具落在 `*: allow` 之下** —— 實測發現顧問因此一直握有
+`read`／`grep`／`glob`，餵它一個專案內檔案的絕對路徑，它**真的會去呼叫 `read`**。
+當時擋下它的是 opencode 的 `external_directory` 閘門，而本節上面就記載了那道閘門
+**對 bash 寫入無效** ⇒ 唯讀保證有一段是靠一道已知會漏的閘門在撐。
+列舉清單還有一個更難察覺的問題：**opencode 將來新增任何工具，都會自動變成 allow**。
+萬用字元版是 fail-closed 的，新工具預設關閉。
+
+實測（2026-08-06，三個免費模型）：`"*": deny` 生效且**單項 `allow` 勝過萬用字元**——
+websearch 正常呼叫，而檔案讀取工具**根本沒有被掛載**（模型自述「只掛載了 websearch
+一個工具」），canary 檔案未外洩，也沒有退回預設 agent。
+
+更早的實測（2026-08-03）確認此法確為機制層生效：事件流中**完全沒有 bash 工具呼叫**
+（該工具不存在），stderr 出現
+`permission requested: external_directory (...); auto-rejecting`，目標檔案未被建立。
+
+#### 為什麼 `websearch` 是 `allow`
+
+顧問的職責是出意見，而**「查得到現況」與「唯讀」是兩件事**。2026-08-06 實測：
+同一個「比較兩家 CLI 訂閱方案」的問題，關掉搜尋時三席顧問全部只能憑訓練資料推論，
+第一位對產品是什麼**猜錯了**，後兩位在「互相回應」的要求下沿用了那個前提 ⇒
+看起來像三人達成共識，實際上是同一個未經查證的假設被複述三次。開啟搜尋後，
+三席都會實際發出查詢並帶回可查證的來源。
+
+⚠️ **代價要說清楚**：顧問由此獲得對外的網路出口。使用者貼進來的脈絡片段有可能被
+模型寫進搜尋查詢、送給搜尋供應商。這是**同一道信任邊界的延伸而不是新開一道**
+——脈絡本來就已經整份送給雲端模型了——但它確實多了一個接收方。
+🔴 **`webfetch` 仍然是 `deny`**：搜尋是「送出查詢字串」，webfetch 是「對任意 URL
+發請求」，後者等於給模型一條主動把脈絡送到它指定位置的路。兩者不可混為一談。
+
+⚠️ **這個放寬只發生在 `opencode` 這一家。** `claude` 是 `--tools ""`（一個工具都沒有）、
+`codex` 是 `--sandbox read-only`、`gemini` 是 `--approval-mode plan`，它們都沒有搜尋。
+⇒ **同一場議會裡，不同 CLI 的席次能不能查證現況是不一樣的**，問到需要即時資訊的
+題目時，各席答案不可直接比較——這與 §2.2「opencode 會注入自己的環境資訊」是同一類
+的不可比性，出題與讀結果時都要記得。
 
 ⚠️ **但 `--agent` 是 fail-open 的，必須自行補上失敗關閉。** 實測 `--agent` 指向
 不存在的 agent 時，opencode **無聲退回完全可寫的預設 agent**、exit code 仍為 0、
