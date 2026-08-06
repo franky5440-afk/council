@@ -15,7 +15,7 @@ manages its own login. What it consumes is **your own subscription quota**.
 
 | | |
 |---|---|
-| **Status** | **Alpha, under active development. Not usable yet.** The adapter detection layer works; the discussion engine and UI are not built. |
+| **Status** | **Alpha, under active development.** The engine, the local server and the web UI now work end to end. Interfaces may still change without notice. |
 | **Platforms** | Linux and macOS only. **Windows is not supported** and will not work — see `SPEC.md` §8. |
 | **Prerequisites** | You must install and log into the CLIs yourself. council will not do it for you. |
 | **Cost** | Every round calls every advisor, and the full transcript is resent each round. **This burns your subscription quota quickly.** |
@@ -71,6 +71,44 @@ Omit the model to use that CLI's own default. Ask each CLI for its model list
 model list and does not check whether a model name exists: a typo simply makes
 that one seat report a failure.
 
+## Running it
+
+```bash
+python3 src/serve.py          # dry run — no CLI is ever launched
+python3 src/serve.py --live   # real calls — spends your subscription quota
+```
+
+Then open the `http://127.0.0.1:8765/` it prints. On the command line the same
+distinction applies: `./run.sh "your question"` calls the CLIs for real, and
+`./run.sh --dry "your question"` does not.
+
+### Dry run is the default, and it will fool you
+
+**Without `--live`, council never starts a CLI subprocess.** Every advisor still
+appears to speak, and the transcript still fills up with cards — but the text is
+a placeholder generated locally. It begins with `【DRY RUN】`, names the model
+that *would* have been called, and reports how many characters the prompt was.
+Elapsed time is `0.0` seconds; the calls are counted, but no token usage is
+reported, because nothing reported any.
+
+This exists so you can click through the entire interface — create a discussion,
+open several rounds, call the arbiter, export the transcript — without spending
+anything. It is genuinely useful. It is also the single thing most likely to
+confuse you, so it is worth saying outright:
+
+> **If the advisors seem not to have answered, or every seat says the same thing
+> in the same shape, check which mode you are in before concluding the models are
+> broken.**
+
+A badge shows the current mode, but the transcript is the better tell. Real
+advisors disagree with each other, name each other, and take visibly different
+amounts of time to answer; dry-run seats are uniform and instant.
+
+`--live` is opt-in for the same reason a round never advances on its own: what
+costs money should be what you asked for. A running server cannot be switched
+between the two modes — stop it and start a new one. Discussions live in memory
+only, so restarting discards them; export anything you want to keep first.
+
 ## Development
 
 Implementation is dispatched to a local builder agent; `dispatch/` holds every
@@ -106,7 +144,7 @@ council 驅動**你自己安裝並登入的官方 CLI**（`claude`、`codex`、`
 
 | | |
 |---|---|
-| **狀態** | **Alpha，開發中，還不能用。** 目前只有 CLI 偵測層可運作，討論引擎與 UI 尚未實作。 |
+| **狀態** | **Alpha，開發中。** 引擎、本機伺服器與 web UI 目前已能端到端運作，但介面仍可能隨時變動。 |
 | **平台** | 僅支援 Linux 與 macOS。**不支援 Windows**，在 Windows 上不會運作——原因見 `SPEC.md` §8。 |
 | **前置條件** | 你必須自行安裝並登入那些 CLI，council 不會代勞。 |
 | **成本** | 每一輪都會呼叫每一位顧問，且每輪重送完整逐字稿。**這會很快消耗你的訂閱額度。** |
@@ -150,6 +188,36 @@ claude:claude-sonnet-5
 省略模型就用該 CLI 自己的預設。可用模型請用各 CLI 自己的指令查
 （opencode 是 `opencode models`，其他家同理）——council 不維護模型清單，
 也不會替你檢查模型名是否存在：**打錯就是那一席回報失敗**。
+
+## 怎麼跑
+
+```bash
+python3 src/serve.py          # dry run——完全不會啟動任何 CLI
+python3 src/serve.py --live   # 真實呼叫——會消耗你的訂閱額度
+```
+
+然後開它印出來的 `http://127.0.0.1:8765/`。命令列同一套規則：
+`./run.sh "你的問題"` 會真的呼叫 CLI，`./run.sh --dry "你的問題"` 不會。
+
+### dry run 是預設值，而且它會騙過你
+
+**沒有加 `--live` 時，council 不會啟動任何 CLI 子行程。** 但畫面上每一位顧問**照樣會
+發言**、逐字稿照樣長出卡片——那些文字是本機生成的假回覆，開頭是 `【DRY RUN】`，
+內容只寫出「本來會呼叫哪個模型」與「收到的 prompt 有幾個字元」。耗時一律 `0.0` 秒；
+呼叫次數照算，但**沒有任何 token 用量統計**，因為根本沒有人回報。
+
+這個模式的存在是為了讓你**把整個介面點過一遍**——建討論、開好幾輪、叫仲裁者、匯出
+逐字稿——完全不花錢。它真的很有用。但它也是**最容易讓你誤判的一件事**，所以直說：
+
+> **如果你覺得「顧問怎麼都沒回應」，或每一席講的話長得一模一樣，
+> 先確認你在哪個模式，再去懷疑模型壞了。**
+
+畫面上有徽章標示模式，但**逐字稿本身是更可靠的判斷依據**：真實的顧問會彼此反駁、
+會指名回應對方、耗時長短明顯不同；dry run 的席次則整齊劃一、瞬間完成。
+
+`--live` 之所以是 opt-in，理由和「一輪結束後永不自動進入下一輪」是同一個：
+**會花錢的事應該是你主動要求的。** 已經在跑的伺服器沒辦法切換模式，要換就關掉重開。
+⚠️ 討論只活在記憶體裡，重開就會全部消失——**想留的內容請先匯出。**
 
 ## 開發方式
 
