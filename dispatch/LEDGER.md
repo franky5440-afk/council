@@ -415,3 +415,18 @@
   - ` M src/static/index.html`
   - ` M tests/test_ui.py`
   - `?? dispatch/packages/028-usage-panel-and-copy.md`
+
+## 2026-08-06 22:42 · 029-transcript-export.md
+
+- 模式：新開
+- session：`ses_0287988f7fferwBcIzVZsJqcXP`
+- 派工前 HEAD：`12d42fdcb1b2168ab3fa918834eb0f4ff85ae41f`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M src/server.py`
+  - ` M src/static/index.html`
+  - ` M tests/test_server.py`
+  - ` M tests/test_ui.py`
+  - `?? dispatch/packages/029-transcript-export.md`
+  - `?? src/engine/transcript.py`
+  - `?? tests/test_transcript.py`
