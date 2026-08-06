@@ -430,3 +430,33 @@
   - `?? dispatch/packages/029-transcript-export.md`
   - `?? src/engine/transcript.py`
   - `?? tests/test_transcript.py`
+
+## 2026-08-06 23:25 · 030-advisor-tool-permissions.md
+
+- 模式：新開
+- session：`ses_028521d7dffe1YpNmrGZkI1C4Z`
+- 派工前 HEAD：`cc4ad3af60accd9d3682f01cffe4422107923255`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M README.md`
+  - ` M src/adapters/opencode.py`
+  - ` M tests/test_adapters_ask.py`
+  - `?? dispatch/BLOCKED.md`
+  - `?? dispatch/packages/030-advisor-tool-permissions.md`
+- ⚠ builder 這輪回報卡關（見 dispatch/BLOCKED.md）
+
+## 2026-08-06 23:31 · 031-fix-030-agent-file-test.md
+
+- 模式：接續 ses_028521d7dffe1YpNmrGZkI1C4Z
+- session：`ses_028521d7dffe1YpNmrGZkI1C4Z`
+- 派工前 HEAD：`cc4ad3af60accd9d3682f01cffe4422107923255`（工作區未提交項目 7 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M README.md`
+  - ` M dispatch/LEDGER.md`
+  - ` M src/adapters/opencode.py`
+  - ` M tests/test_adapters_ask.py`
+  - `?? dispatch/blocked/20260806-233144.md`
+  - `?? dispatch/packages/030-advisor-tool-permissions.md`
+  - `?? dispatch/packages/031-fix-030-agent-file-test.md`
+- 上一輪卡關報告已歸檔：`dispatch/blocked/20260806-233144.md`
