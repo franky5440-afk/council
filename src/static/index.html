@@ -76,6 +76,14 @@ textarea, input[type="text"] {
 }
 #usage-panel .seat-block { margin: 0.5rem 0 0.25rem 0; }
 button { font-size: 1rem; padding: 0.4rem 1rem; }
+#btn-export {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  border: 1px solid #999;
+  border-radius: 3px;
+  color: #222;
+  text-decoration: none;
+}
 #live-cost-warning { color: #c00; font-weight: bold; }
 </style>
 </head>
@@ -129,6 +137,7 @@ opencode:opencode/ling-3.0-flash-free</textarea>
     <div id="action-row">
       <button id="btn-round">再一輪</button>
       <button id="btn-arbitration">叫仲裁者</button>
+      <a id="btn-export" download>匯出 Markdown</a>
       <span id="live-cost-warning"></span>
     </div>
   </div>
@@ -377,6 +386,7 @@ function showFormError(message) {
 function showForm() {
   closeSse();
   currentId = null;
+  $("btn-export").removeAttribute("href");
   lastStatus = null;
   $("st-id").textContent = "";
   $("st-phase").textContent = "";
@@ -392,6 +402,7 @@ function showForm() {
 
 function renderDiscussion(data) {
   currentId = data.id;
+  $("btn-export").href = "/api/discussions/" + data.id + "/export.md";
   $("st-id").textContent = "討論 id：" + data.id;
   $("question-text").textContent = "原始問題：" + data.question;
   $("context-chars-text").textContent = "脈絡字元數：" + data.context_chars;

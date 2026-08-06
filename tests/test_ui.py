@@ -194,6 +194,12 @@ class IndexHtmlStructureTest(unittest.TestCase):
         for kind in EVENT_KINDS:
             self.assertIn(kind, self.source)
 
+    def test_btn_export_present(self):
+        self.assertIn('id="btn-export"', self.source)
+
+    def test_no_create_object_url(self):
+        self.assertNotIn("createObjectURL", self.source)
+
 
 if __name__ == "__main__":
     unittest.main()

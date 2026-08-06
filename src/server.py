@@ -16,6 +16,7 @@ import ui
 from engine import orchestrator
 from engine import sessions
 from engine import state
+from engine import transcript
 from engine.wiring import parse_seat_spec
 
 EVENT_KINDS = (
@@ -45,7 +46,7 @@ def _match(path: str):
         if len(rest) == 1 and rest[0]:
             return ("discussion", rest[0])
         if len(rest) == 2 and rest[0] and rest[1] in (
-                "rounds", "arbitration", "events"):
+                "rounds", "arbitration", "events", "export.md"):
             return (rest[1], rest[0])
     return (None, None)
 
@@ -87,6 +88,8 @@ class _Handler(BaseHTTPRequestHandler):
                     self._get_discussion(arg)
                 elif kind == "events":
                     self._get_events(arg)
+                elif kind == "export.md":
+                    self._get_export(arg)
                 else:
                     self._reply_error(404, "找不到該路徑")
             elif self.command == "POST":
@@ -222,6 +225,28 @@ class _Handler(BaseHTTPRequestHandler):
             self._reply_error(404, "找不到該討論")
             return
         self._reply_json(200, self._common_shape(session))
+
+    def _get_export(self, session_id) -> None:
+        session = self.server.store.get(session_id)
+        if session is None:
+            self._reply_error(404, "找不到該討論")
+            return
+        # 讀者路徑：絕對不拿執行權（與 SSE 同一條規矩），否則「有人在匯出」
+        # 會變成「沒有人能開下一輪」。逐字稿一律從事件流重播，不讀
+        # discussion.rounds——那會被邊跑邊 append（SPEC.md §7.1）。
+        body = transcript.render_markdown(
+            self._common_shape(session), session.events_since(0)
+        ).encode("utf-8")
+        filename = "council-" + session.id + ".md"
+        self.send_response(200)
+        self.send_header("Content-Type", "text/markdown; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Disposition",
+                         f'attachment; filename="{filename}"')
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(body)
 
     def _post_discussions(self, body) -> None:
         unknown = set(body) - set(DISCUSSION_KEYS)

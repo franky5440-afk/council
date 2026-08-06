@@ -15,6 +15,7 @@ sys.path.insert(0, str(SRC_DIR))
 import server  # noqa: E402
 from engine import orchestrator  # noqa: E402
 from engine import state  # noqa: E402
+from engine import transcript  # noqa: E402
 
 DEFAULT_ADVISORS = ["claude", "opencode"]
 
@@ -459,6 +460,70 @@ class ArbitrationTest(ServerCase):
             conn.close()
         data = b"".join(lines)
         self.assertNotIn(b"arbitration_started", data)
+
+
+class ExportTest(ServerCase):
+    def test_export_headers(self):
+        srv, port = self.start()
+        did = self.create_discussion(port)
+        self.run_rounds(port, did, 1)
+        status, headers, _ = request(
+            "GET", port, f"/api/discussions/{did}/export.md")
+        self.assertEqual(status, 200)
+        self.assertEqual(headers.get("Content-Type"),
+                         "text/markdown; charset=utf-8")
+        self.assertEqual(headers.get("Cache-Control"), "no-store")
+        self.assertEqual(headers.get("X-Content-Type-Options"), "nosniff")
+        self.assertEqual(
+            headers.get("Content-Disposition"),
+            f'attachment; filename="council-{did}.md"')
+
+    def test_export_body_matches_render_markdown(self):
+        srv, port = self.start()
+        did = self.create_discussion(port)
+        self.run_rounds(port, did, 1)
+        status, _, body = request(
+            "GET", port, f"/api/discussions/{did}/export.md")
+        self.assertEqual(status, 200)
+        session = srv.store.get(did)
+        _, _, meta_body = request(
+            "GET", port, f"/api/discussions/{did}")
+        meta = json.loads(meta_body)
+        expected = transcript.render_markdown(
+            meta, session.events_since(0)).encode("utf-8")
+        self.assertEqual(body, expected)
+
+    def test_export_missing_id_404(self):
+        srv, port = self.start()
+        status, _, _ = request(
+            "GET", port, "/api/discussions/no-such/export.md")
+        self.assertEqual(status, 404)
+
+    def test_export_post_404(self):
+        srv, port = self.start()
+        did = self.create_discussion(port)
+        status, _, _ = request(
+            "POST", port, f"/api/discussions/{did}/export.md", {})
+        self.assertEqual(status, 404)
+
+    def test_export_host_gate_403(self):
+        srv, port = self.start()
+        did = self.create_discussion(port)
+        status, _, _ = request(
+            "GET", port, f"/api/discussions/{did}/export.md",
+            headers={"Host": "evil.example.com"})
+        self.assertEqual(status, 403)
+
+    def test_export_does_not_claim_execution_right(self):
+        srv, port = self.start()
+        did = self.create_discussion(port)
+        self.run_rounds(port, did, 1)
+        status, _, _ = request(
+            "GET", port, f"/api/discussions/{did}/export.md")
+        self.assertEqual(status, 200)
+        session = srv.store.get(did)
+        self.assertTrue(session.try_claim())
+        session.release()
 
 
 class SseTest(ServerCase):
