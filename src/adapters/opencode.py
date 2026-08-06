@@ -12,19 +12,18 @@ ID = "opencode"
 CMD = "opencode"
 
 AGENT_NAME = "advisor"
+# 權限是「全關再單開」，不是逐項 deny（SPEC.md §4.2）。列舉清單會讓沒被列到的
+# 工具落在 opencode 的 *: allow 之下——顧問一度因此握有 read/grep/glob，而且
+# opencode 將來新增的任何工具都會自動變成 allow。萬用字元版是 fail-closed 的。
+# websearch 是唯一的例外：查得到現況與唯讀是兩件事（§4.2）。webfetch 維持關閉,
+# 它是「對任意 URL 發請求」，等於給模型一條主動把脈絡送出去的路。
 AGENT_DEF = """\
 ---
-description: Read-only council advisor.
+description: Read-only council advisor. Web search allowed, nothing else.
 mode: primary
 permission:
-  bash: deny
-  edit: deny
-  webfetch: deny
-  task: deny
-  todowrite: deny
-  websearch: deny
-  lsp: deny
-  skill: deny
+  "*": deny
+  websearch: allow
 ---
 
 You are a council advisor. Answer the question directly.

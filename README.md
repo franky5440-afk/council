@@ -40,7 +40,11 @@ different models. You can therefore assemble a council entirely out of free mode
 without touching a paid subscription.
 
 Advisors are run read-only wherever the CLI supports it: they give opinions, they
-do not act.
+do not act. One exception is deliberate — advisors running on `opencode` are
+allowed to search the web, because being able to check current facts is a
+different thing from being able to change your machine. They still cannot read
+your files, run commands, or fetch arbitrary URLs. Note that this means a search
+provider may see fragments of whatever context you attach. See `SPEC.md` §4.2.
 
 Because AI produces output whenever it is given input, council imposes explicit
 stop boundaries — most importantly, **a round never advances to the next round on
@@ -119,7 +123,11 @@ council 驅動**你自己安裝並登入的官方 CLI**（`claude`、`codex`、`
 都支援指定模型的旗標，同一個 CLI 可以用不同模型佔用多個席次。因此你可以組出
 **完全由免費模型構成的議會**，不動用任何付費訂閱。
 
-顧問在 CLI 支援的範圍內一律以唯讀模式執行：它們只出意見，不動手。
+顧問在 CLI 支援的範圍內一律以唯讀模式執行：它們只出意見，不動手。**有一個刻意的例外**：
+跑在 `opencode` 上的顧問可以使用網路搜尋——查得到現況與能不能動你的機器是兩件事。
+它們仍然讀不到你的檔案、不能執行指令、不能對任意網址發請求。
+⚠️ 這也代表**你貼進去的脈絡片段有可能出現在搜尋查詢裡**，被搜尋供應商看到。
+詳見 `SPEC.md` §4.2。
 
 因為 AI 只要有輸入就會產生輸出，council 施加了明確的停止邊界——其中最重要的一道是
 **一輪結束後永不自動進入下一輪**，它會停下來等你。六道邊界全部列於 `SPEC.md` §5。

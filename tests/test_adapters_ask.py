@@ -242,7 +242,13 @@ class OpenCodeAskTest(unittest.TestCase):
             i = args.index("--agent")
             self.assertEqual(args[i + 1], opencode.AGENT_NAME)
 
-    def test_agent_file_created_with_deny(self):
+    def test_agent_file_written_matches_agent_def(self):
+        """驗證 ask() 真的把 agent 定義寫進 --dir 指向的目錄。
+
+        這條的職責是「檔案有沒有被寫出去、內容是不是那一份」，不是「權限清單
+        長什麼樣」——後者由 OpenCodeAgentPermissionTest 直接斷言 AGENT_DEF 守著。
+        期望值寫成 AGENT_DEF 本身，規格再變時這條不必跟著改（SPEC.md §4.2）。
+        """
         with tempdir() as tmp:
             copy = tmp / "agent_copy.md"
             agent_sub = f".opencode/agents/{opencode.AGENT_NAME}.md"
@@ -262,8 +268,7 @@ class OpenCodeAskTest(unittest.TestCase):
                 result = opencode.ask("hello", self.MODEL, 5, 100)
             self.assertTrue(result["ok"])
             content = copy.read_text()
-            self.assertIn("bash: deny", content)
-            self.assertIn("edit: deny", content)
+            self.assertEqual(content, opencode.AGENT_DEF)
 
     def test_fallback_to_default_agent_fails(self):
         with tempdir() as tmp:
@@ -1074,6 +1079,38 @@ class GeminiAskTest(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertIsNone(result["model_used"])
         self.assertIsNone(result["usage"])
+
+
+class OpenCodeAgentPermissionTest(unittest.TestCase):
+    """SPEC.md §4.2：顧問的工具權限是「全關再單開」。
+
+    這幾條守的是機制層保證本身，不是某次呼叫的行為 ⇒ 直接斷言 AGENT_DEF 的內容。
+    2026-08-06 之前這裡沒有任何測試，於是 read/grep/glob 一直開著沒人發現。
+    """
+
+    def test_wildcard_deny_present(self):
+        self.assertIn('"*": deny', opencode.AGENT_DEF)
+
+    def test_websearch_allowed_after_wildcard(self):
+        # 順序就是規格：單項 allow 必須排在萬用字元 deny 之後。
+        wildcard = opencode.AGENT_DEF.index('"*": deny')
+        websearch = opencode.AGENT_DEF.index("websearch: allow")
+        self.assertLess(wildcard, websearch)
+
+    def test_webfetch_never_allowed(self):
+        # webfetch 是「對任意 URL 發請求」，與 websearch 不是同一件事（§4.2）。
+        self.assertNotIn("webfetch: allow", opencode.AGENT_DEF)
+
+    def test_no_other_tool_is_allowed(self):
+        # 全檔只准出現一個 allow，而且必須是 websearch 那一個。
+        allows = [line.strip() for line in opencode.AGENT_DEF.splitlines()
+                  if line.strip().endswith(": allow")]
+        self.assertEqual(allows, ["websearch: allow"])
+
+    def test_agent_def_is_used_by_ask(self):
+        # 寫進暫存目錄的那份定義必須就是 AGENT_DEF 本身，不是另一份複製品。
+        self.assertIn("permission:", opencode.AGENT_DEF)
+        self.assertEqual(opencode.AGENT_NAME, "advisor")
 
 
 if __name__ == "__main__":
