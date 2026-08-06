@@ -11,8 +11,9 @@ HANDOFF.md
 
 # 內部規則檔（Frank 2026-08-04 決定）：builder 與 reviewer 的工作規範屬內部文件，
 # 不隨公開程式碼發布。兩個檔仍留在磁碟上——builder 讀的是工作目錄裡的 AGENTS.md，
-# 停止追蹤不影響它運作。⚠️ 離機副本在 private repo imac-system-snapshot 的
-# InternalDocs/council/，那是它們唯一的備份，改完記得同步過去。
+# 停止追蹤不影響它運作。⚠️ 這兩個檔的離機副本只存在一個 private 備份 repo 裡，
+# 那是它們唯一的備份，改完記得同步過去。**備份位置寫在本機未追蹤的 HANDOFF.md，
+# 刻意不寫在這裡**——一個防洩漏用的排除清單沒有理由順便公布備份放在哪。
 AGENTS.md
 CLAUDE.md
 
