@@ -187,7 +187,11 @@ class IndexHtmlStructureTest(unittest.TestCase):
         self.assertIn("不是所有席次的總和", self.source)
 
     def test_advisor_order_is_documented(self):
-        """席次順序就是發言順序，這件事只有實作知道，使用者看不出來。"""
+        """席次順序就是發言順序，這件事只有實作知道，使用者看不出來。
+        「一行一席」也守在這裡：032 改版時它一度被寫成「一行一句」（工作包引用
+        原文時打錯字，builder 取了最字面的讀法），而那句話會讓人以為一位顧問
+        可以分好幾行寫。純文案的回歸沒有任何測試守得住，所以釘在這裡。"""
+        self.assertIn("一行一席", self.source)
         self.assertIn("由上到下就是發言順序", self.source)
 
     def test_all_event_kinds_listened(self):
@@ -199,6 +203,36 @@ class IndexHtmlStructureTest(unittest.TestCase):
 
     def test_no_create_object_url(self):
         self.assertNotIn("createObjectURL", self.source)
+
+    def test_hidden_attribute_still_hides(self):
+        """兩個主要畫面（form-view／discussion-view）靠 hidden 屬性切換；
+        一旦 layout 規則用了 display:grid／flex，hidden 屬性就會失效、
+        兩個畫面同時顯示。必須寫在 stylesheet 裡，且要等 [hidden] 的
+        重要性壓過所有 layout 規則。"""
+        self.assertIn("[hidden]", self.source)
+        self.assertIn("display: none !important", self.source)
+
+    def test_no_external_resources(self):
+        """CSP 是 img-src 'none'／default-src 'none'，外部資源一律載不到
+        （background-image: url(...)、@font-face 字型檔、data: URI 都被擋掉），
+        而 SVG 的 xmlns 屬性會帶進 http:// 踩爆既有的 test_no_http_urls。
+        ⇒ 不得出現 url() 與 <svg，一律用純 CSS 與 unicode 字元。"""
+        self.assertNotIn("url(", self.source)
+        self.assertNotIn("<svg", self.source)
+
+    def test_stat_tiles_present(self):
+        """討論檢視最上方的三張統計卡：輪次／格式違規／總呼叫。"""
+        for word in ('id="st-rounds"', 'id="st-violations"',
+                     'id="st-calls"', 'id="st-cap"'):
+            self.assertIn(word, self.source)
+        for label in ("輪次", "格式違規", "總呼叫"):
+            self.assertIn(label, self.source)
+
+    def test_css_variables_defined(self):
+        """深色主題的色票全部以 :root 的 CSS 變數定義，不散落硬編色碼。"""
+        self.assertIn(":root", self.source)
+        for var in ("--accent", "--bg", "--panel", "--text", "--muted"):
+            self.assertIn(var + ":", self.source)
 
 
 if __name__ == "__main__":

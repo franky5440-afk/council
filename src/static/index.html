@@ -6,145 +6,418 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'none'; form-action 'none'; base-uri 'none'">
 <title>council</title>
 <style>
-body {
-  font-family: system-ui, sans-serif;
-  margin: 0;
-  background: #fff;
-  color: #222;
+:root {
+  --bg:         #0F0F10;
+  --panel:      #17181A;
+  --panel-2:    #1E1F22;
+  --panel-3:    #26282C;
+  --line:       #2A2C30;
+  --text:       #F2F2F3;
+  --muted:      #8B8D93;
+  --accent:     #E6D07C;
+  --accent-ink: #141414;
+  --mint:       #B9E8CE;
+  --sage:       #CFE9D4;
+  --danger:     #FF6B6B;
+  --radius-lg:  20px;
+  --radius:     14px;
+  --radius-sm:  10px;
 }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Noto Sans TC", "Noto Sans CJK TC", sans-serif;
+  margin: 0;
+}
+
+h1 { font-size: 1.35rem; font-weight: 600; margin: 0 0 4px; }
+
+.app {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 320px;
+  gap: 16px;
+  padding: 16px;
+  min-height: 100vh;
+  align-items: start;
+}
+
+.main-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+#sidebar {
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+  padding: 20px 16px;
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-height: calc(100vh - 32px);
+}
+.brand-name { font-size: 1.25rem; font-weight: 600; }
+.brand-sub { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+.sidebar-divider { height: 1px; background: var(--line); margin: 16px 0; border: 0; }
+#sidebar #btn-new { width: 100%; margin-bottom: 20px; }
+.sidebar-section-title { font-size: 0.75rem; color: var(--muted); letter-spacing: .08em; font-weight: 600; margin-bottom: 10px; }
+.seat-row {
+  padding: 10px 12px;
+  background: var(--panel-2);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  font-size: .82rem;
+  line-height: 1.5;
+}
+.sidebar-spacer { margin-top: auto; }
+
 #status-bar {
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 10px;
   align-items: center;
-  padding: 0.5rem 1rem;
-  background: #f4f4f4;
-  border-bottom: 1px solid #ddd;
-  font-size: 0.9rem;
+  justify-content: flex-end;
 }
-main {
-  max-width: 1024px;
-  margin: 0 auto;
-  padding: 1rem;
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: .78rem;
+  border: 1px solid var(--line);
 }
-.badge {
-  display: inline-block;
-  padding: 0.2rem 0.6rem;
-  border-radius: 3px;
-  font-weight: bold;
+.chip:empty { display: none; }
+.chip-busy { color: var(--accent); }
+.chip-alert { color: var(--danger); border-color: var(--danger); }
+
+#mode-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: .78rem;
 }
-.badge-live { background: #c00; color: #fff; }
-.badge-gray { background: #ddd; color: #333; }
-.badge-small {
-  display: inline-block;
-  padding: 0.1rem 0.4rem;
-  margin: 0 0.3rem 0.2rem 0;
-  font-weight: normal;
-  font-size: 0.8rem;
-  background: #eee;
-  color: #555;
-  border-radius: 3px;
+#mode-badge.badge-gray { background: var(--panel-2); color: var(--muted); }
+#mode-badge.badge-live { background: var(--danger); color: #fff; font-weight: 600; }
+
+.btn {
+  font: inherit;
+  font-size: .88rem;
+  font-weight: 600;
+  padding: 11px 20px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
 }
-label { display: block; margin: 0.75rem 0; }
-textarea, input[type="text"] {
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-ghost { background: var(--panel-2); color: var(--text); border-color: var(--line); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+#btn-export {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+#live-cost-warning { color: var(--danger); font-weight: 600; font-size: .82rem; }
+
+#form-view {
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+.field { margin-bottom: 20px; }
+#form-view label {
+  display: block;
+  font-size: .85rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+#form-view textarea,
+#form-view input[type="text"],
+#form-view input[type="file"] {
   width: 100%;
   box-sizing: border-box;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
   font-family: inherit;
+  font-size: .9rem;
+  line-height: 1.55;
 }
-.hint { font-size: 0.85rem; color: #555; }
-#form-error { color: #c00; }
-#discussion-view .kv { font-size: 0.95rem; }
-#seat-list { font-size: 0.9rem; color: #333; }
+#form-view textarea:focus,
+#form-view input[type="text"]:focus,
+#form-view input[type="file"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.hint {
+  display: block;
+  margin-top: 6px;
+  font-size: .78rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+code {
+  background: var(--panel-3);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: .85em;
+}
+#form-error {
+  color: var(--danger);
+  background: rgba(255,107,107,.08);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 16px;
+}
+#form-error:empty { display: none; }
+
+#stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.stat {
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  color: var(--accent-ink);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stat-accent { background: var(--accent); }
+.stat-mint   { background: var(--mint); }
+.stat-sage   { background: var(--sage); }
+.stat-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.82);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .95rem;
+}
+.stat-label { font-size: .78rem; opacity: .72; }
+.stat-value { font-size: 1.6rem; font-weight: 600; line-height: 1.1; }
+.stat-note { font-size: .74rem; opacity: .72; }
+.stat-note:empty { display: none; }
+
+.question-card {
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-top: 12px;
+}
+#question-text { font-size: 1.05rem; font-weight: 500; }
+#context-chars-text { font-size: .78rem; color: var(--muted); }
+
+#converged-hint {
+  background: rgba(185,232,206,.12);
+  border: 1px solid var(--mint);
+  color: var(--mint);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-top: 12px;
+}
+#converged-hint:empty { display: none; }
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin: 12px 0;
+}
+.card-head { font-weight: 600; font-size: .92rem; margin-bottom: 8px; }
+.speech-text {
+  white-space: pre-wrap;
+  line-height: 1.75;
+  font-size: .92rem;
+  overflow-wrap: anywhere;
+}
+.card.arbitration { border-left: 3px solid var(--accent); }
+.card.arbitration.pending { color: var(--muted); font-style: italic; }
+.badge-small {
+  display: inline-flex;
+  padding: 3px 9px;
+  margin: 0 6px 8px 0;
+  font-size: .72rem;
+  background: var(--panel-3);
+  color: var(--muted);
+  border-radius: 999px;
+}
 .round-heading {
-  font-weight: bold;
-  margin-top: 1rem;
-  padding-bottom: 0.15rem;
-  border-bottom: 1px solid #999;
+  font-size: .78rem;
+  color: var(--muted);
+  letter-spacing: .08em;
+  font-weight: 600;
+  margin: 28px 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
-.card { border: 1px solid #ccc; border-radius: 4px; margin: 0.5rem 0; padding: 0.5rem 0.75rem; }
-.card-head { font-weight: bold; margin-bottom: 0.25rem; }
-.speech-text { white-space: pre-wrap; }
-.card.arbitration { background: #eef3ff; }
-.card.arbitration.pending { background: #fff8e1; color: #666; font-style: italic; }
-#converged-hint { color: #070; font-weight: bold; }
+.round-heading::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+#action-row {
+  position: sticky;
+  bottom: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+}
+
 #usage-panel {
-  max-width: 1024px;
-  margin: 0 auto;
-  padding: 1rem;
-  border-top: 1px solid #ddd;
-  font-size: 0.9rem;
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  font-size: .8rem;
+  box-sizing: border-box;
 }
-#usage-panel .seat-block { margin: 0.5rem 0 0.25rem 0; }
-button { font-size: 1rem; padding: 0.4rem 1rem; }
-#btn-export {
-  display: inline-block;
-  padding: 0.4rem 1rem;
-  border: 1px solid #999;
-  border-radius: 3px;
-  color: #222;
-  text-decoration: none;
+#usage-content > div:first-child { font-size: .85rem; font-weight: 600; }
+.seat-block {
+  background: var(--panel-2);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin: 10px 0;
 }
-#live-cost-warning { color: #c00; font-weight: bold; }
+.usage-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0;
+}
+
+@media (max-width: 1180px) {
+  .app { grid-template-columns: 1fr; }
+  #sidebar { position: static; min-height: auto; }
+  #usage-panel { position: static; max-height: none; }
+  #form-view { padding: 16px; }
+}
+
+@media (max-width: 700px) {
+  #stat-row { grid-template-columns: 1fr; }
+}
+
+[hidden] { display: none !important; }
 </style>
 </head>
 <body>
 
-<div id="status-bar">
-  <span id="mode-badge" class="badge badge-gray">模式：尚未確認</span>
-  <span id="st-id"></span>
-  <span id="st-phase"></span>
-  <span id="st-rounds"></span>
-  <span id="converged-hint"></span>
-  <span id="st-violations"></span>
-  <span id="st-busy"></span>
-  <span id="st-sse"></span>
-</div>
+<div class="app">
+  <aside id="sidebar">
+    <div class="brand-name">◆ council</div>
+    <div class="brand-sub">多個 AI CLI 輪流發言的議會</div>
+    <div class="sidebar-divider"></div>
+    <button id="btn-new" class="btn btn-ghost">＋ 開新討論</button>
+    <div class="sidebar-section-title">席次</div>
+    <div id="seat-list"></div>
+    <div class="sidebar-spacer"></div>
+    <div id="mode-badge" class="badge badge-gray">模式：尚未確認</div>
+  </aside>
 
-<main>
-  <div id="form-view">
-    <h1>建立討論</h1>
-    <div id="form-error"></div>
-    <form id="create-form">
-      <label>問題
-        <textarea id="question" rows="2" required></textarea>
-      </label>
-      <label>顧問（一行一席，由上到下就是發言順序；顧問 1～3 位，含仲裁者共 2～4 席；格式 &lt;cli&gt;[:&lt;模型&gt;]）
-        <textarea id="advisors" rows="4">opencode:opencode/deepseek-v4-flash-free
+  <div class="main-col">
+    <div id="status-bar">
+      <span id="st-phase" class="chip"></span>
+      <span id="st-busy" class="chip chip-busy"></span>
+      <span id="st-sse" class="chip chip-alert"></span>
+      <span id="st-id" class="chip"></span>
+    </div>
+
+    <main>
+      <div id="form-view">
+        <h1>建立討論</h1>
+        <div id="form-error"></div>
+        <form id="create-form">
+          <div class="field">
+            <label for="question">問題</label>
+            <textarea id="question" rows="2" required></textarea>
+          </div>
+          <div class="field">
+            <label for="advisors">顧問（一行一席，由上到下就是發言順序；顧問 1～3 位，含仲裁者共 2～4 席；格式 &lt;cli&gt;[:&lt;模型&gt;]）</label>
+            <textarea id="advisors" rows="4">opencode:opencode/deepseek-v4-flash-free
 opencode:opencode/nemotron-3-ultra-free
 opencode:opencode/ling-3.0-flash-free</textarea>
-        <span class="hint">可用的 cli：claude／codex／gemini／opencode，可以混搭。模型清單用各 CLI 自己的指令查（opencode 是 <code>opencode models</code>）。換模型就是改這一欄的文字，不必動任何程式碼。</span>
-      </label>
-      <label>仲裁者（不參與討論；按「叫仲裁者」才會呼叫它）
-        <input type="text" id="arbiter" value="claude">
-      </label>
-      <label>脈絡（選填；送給每一位顧問，每輪重送）
-        <input type="file" id="context-file">
-        <textarea id="context" rows="4"></textarea>
-        <span class="hint">字元數：<span id="context-chars">0</span>。</span>
-        <span class="hint">檔案由你的瀏覽器讀取後送出內容，伺服器不會去開你的檔案（SPEC.md §7.2）。</span>
-      </label>
-      <button type="submit">建立討論</button>
-    </form>
+            <span class="hint">可用的 cli：claude／codex／gemini／opencode，可以混搭。模型清單用各 CLI 自己的指令查（opencode 是 <code>opencode models</code>）。換模型就是改這一欄的文字，不必動任何程式碼。</span>
+          </div>
+          <div class="field">
+            <label for="arbiter">仲裁者（不參與討論；按「叫仲裁者」才會呼叫它）</label>
+            <input type="text" id="arbiter" value="claude">
+          </div>
+          <div class="field">
+            <label for="context-file">脈絡（選填；送給每一位顧問，每輪重送）</label>
+            <input type="file" id="context-file">
+            <textarea id="context" rows="4"></textarea>
+            <span class="hint">字元數：<span id="context-chars">0</span>。</span>
+            <span class="hint">檔案由你的瀏覽器讀取後送出內容，伺服器不會去開你的檔案（SPEC.md §7.2）。</span>
+          </div>
+          <button type="submit" class="btn btn-primary">建立討論</button>
+        </form>
+      </div>
+
+      <div id="discussion-view" hidden>
+        <h1>討論</h1>
+        <div id="stat-row">
+          <div class="stat stat-accent">
+            <span class="stat-icon">◷</span>
+            <span class="stat-label">輪次</span>
+            <span class="stat-value" id="st-rounds"></span>
+            <span class="stat-note" id="st-cap"></span>
+          </div>
+          <div class="stat stat-mint">
+            <span class="stat-icon">⚑</span>
+            <span class="stat-label">格式違規</span>
+            <span class="stat-value" id="st-violations"></span>
+          </div>
+          <div class="stat stat-sage">
+            <span class="stat-icon">◎</span>
+            <span class="stat-label">總呼叫</span>
+            <span class="stat-value" id="st-calls"></span>
+          </div>
+        </div>
+        <div class="question-card">
+          <div id="question-text"></div>
+          <div id="context-chars-text"></div>
+        </div>
+        <div id="converged-hint"></div>
+        <div id="transcript"></div>
+        <div id="action-row">
+          <button id="btn-round" class="btn btn-primary">再一輪</button>
+          <button id="btn-arbitration" class="btn btn-ghost">⚖ 叫仲裁者</button>
+          <a id="btn-export" class="btn btn-ghost" download>↓ 匯出 Markdown</a>
+          <span id="live-cost-warning"></span>
+        </div>
+      </div>
+    </main>
   </div>
 
-  <div id="discussion-view" hidden>
-    <h1>討論</h1>
-    <button id="btn-new">開新討論</button>
-    <div class="kv" id="question-text"></div>
-    <div class="kv" id="context-chars-text"></div>
-    <div id="seat-list"></div>
-    <div id="transcript"></div>
-    <div id="action-row">
-      <button id="btn-round">再一輪</button>
-      <button id="btn-arbitration">叫仲裁者</button>
-      <a id="btn-export" download>匯出 Markdown</a>
-      <span id="live-cost-warning"></span>
-    </div>
+  <div id="usage-panel">
+    <div id="usage-content"></div>
   </div>
-</main>
-
-<div id="usage-panel">
-  <div id="usage-content"></div>
 </div>
 
 <script>
@@ -197,14 +470,11 @@ function setBusy(value) {
 
 function renderStatusBar(status) {
   $("st-phase").textContent = "相位：" + phaseLabel(status.phase);
-  $("st-rounds").textContent = "輪次 " + status.rounds_completed + " / " + status.max_rounds;
-  if (status.at_cap === true) {
-    $("st-rounds").textContent += "（已達上限）";
-  }
+  $("st-rounds").textContent = status.rounds_completed + " / " + status.max_rounds;
+  $("st-cap").textContent = status.at_cap === true ? "已達上限" : "";
   $("converged-hint").textContent =
     status.converged === true ? "全體顧問都表示沒有補充了 — 可以收斂" : "";
-  $("st-violations").textContent =
-    status.format_violations > 0 ? "格式違規 " + status.format_violations + " 次" : "";
+  $("st-violations").textContent = status.format_violations;
   if (status.at_cap === true) {
     $("btn-round").textContent = "再一輪（需確認）";
   } else if (status.rounds_completed === 0) {
@@ -249,13 +519,20 @@ function renderUsageDict(label, usage) {
   keys.sort();
   keys.forEach(function (key) {
     var row = document.createElement("div");
-    row.textContent = key + "：" + flat[key];
+    row.className = "usage-row";
+    var k = document.createElement("span");
+    k.textContent = key;
+    var v = document.createElement("span");
+    v.textContent = flat[key];
+    row.appendChild(k);
+    row.appendChild(v);
     container.appendChild(row);
   });
   return container;
 }
 
 function renderUsage(status) {
+  $("st-calls").textContent = (status && status.usage) ? status.usage.calls : 0;
   var content = $("usage-content");
   clearChildren(content);
   var heading = document.createElement("div");
@@ -268,9 +545,6 @@ function renderUsage(status) {
   content.appendChild(note);
   if (!status || !status.usage) { return; }
   var usage = status.usage;
-  var calls = document.createElement("div");
-  calls.textContent = "總呼叫 " + usage.calls + " 次";
-  content.appendChild(calls);
   // 各席次分列排在累加區之前：累加區是同名欄位各自相加的混合體，
   // 先看到它會把它讀成總計。
   Object.keys(usage.by_seat).sort().forEach(function (seatId) {
@@ -320,14 +594,17 @@ function addSpeechCard(rec) {
   head.className = "card-head";
   head.textContent = rec.seat_id;
   card.appendChild(head);
-  if (rec.stance) { card.appendChild(badge("立場: " + rec.stance)); }
-  if (rec.more === false) { card.appendChild(badge("補充: 無")); }
-  if (rec.truncated) { card.appendChild(badge("已截斷")); }
-  if (rec.violation) { card.appendChild(badge("格式違規")); }
-  if (rec.model_used === null) { card.appendChild(badge("模型未經確認")); }
+  var badgeRow = document.createElement("div");
+  badgeRow.className = "badge-row";
+  if (rec.stance) { badgeRow.appendChild(badge("立場: " + rec.stance)); }
+  if (rec.more === false) { badgeRow.appendChild(badge("補充: 無")); }
+  if (rec.truncated) { badgeRow.appendChild(badge("已截斷")); }
+  if (rec.violation) { badgeRow.appendChild(badge("格式違規")); }
+  if (rec.model_used === null) { badgeRow.appendChild(badge("模型未經確認")); }
   if (typeof rec.elapsed_s === "number") {
-    card.appendChild(badge(rec.elapsed_s.toFixed(1) + " 秒"));
+    badgeRow.appendChild(badge(rec.elapsed_s.toFixed(1) + " 秒"));
   }
+  if (badgeRow.firstChild) { card.appendChild(badgeRow); }
   var body = document.createElement("div");
   body.className = "speech-text";
   if (rec.ok === true) {
@@ -413,6 +690,7 @@ function renderDiscussion(data) {
     row.textContent = seat.seat_id + " — " + seat.cli +
       (seat.model ? "：" + seat.model : "") +
       "（" + (seat.role === "arbiter" ? "仲裁者" : "顧問") + "）";
+    row.className = "seat-row";
     seats.appendChild(row);
   });
   clearChildren($("transcript"));
