@@ -69,7 +69,9 @@ class Discussion:
         if not isinstance(question, str) or not question.strip():
             raise ValueError("question 不得為空")
         if not isinstance(seats, list) or not (2 <= len(seats) <= 4):
-            raise ValueError("seats 長度須為 2～4")
+            count = len(seats) if isinstance(seats, list) else 0
+            raise ValueError(
+                f"收到 {count} 席；顧問 1～3 席、加上恰好一個仲裁者，總席次須為 2～4")
         seen_ids = set()
         arbiter_count = 0
         advisor_count = 0
@@ -125,6 +127,7 @@ class Discussion:
         self._usage_by_seat = {}
         self._calls_total = 0
         self._calls_by_seat = {}
+        self._failed_by_seat = {}
 
     def begin_round(self) -> int:
         if self.phase != PHASE_READY:
@@ -172,6 +175,8 @@ class Discussion:
         current.append(record)
         self._calls_total += 1
         self._calls_by_seat[seat_id] = self._calls_by_seat.get(seat_id, 0) + 1
+        if not result["ok"]:
+            self._failed_by_seat[seat_id] = self._failed_by_seat.get(seat_id, 0) + 1
         prev = self._usage_by_seat.get(seat_id, {})
         self._usage_by_seat[seat_id] = merge_usage(prev, result["usage"])
         return record
@@ -225,6 +230,8 @@ class Discussion:
         self.arbitrations.append(record)
         self._calls_total += 1
         self._calls_by_seat[seat_id] = self._calls_by_seat.get(seat_id, 0) + 1
+        if not result["ok"]:
+            self._failed_by_seat[seat_id] = self._failed_by_seat.get(seat_id, 0) + 1
         prev = self._usage_by_seat.get(seat_id, {})
         self._usage_by_seat[seat_id] = merge_usage(prev, result["usage"])
         return record
@@ -238,7 +245,10 @@ class Discussion:
     def converged(self) -> bool:
         if self.phase != PHASE_AWAITING_USER:
             return False
-        return all(rec["more"] is False for rec in self.rounds[-1])
+        succeeded = [rec for rec in self.rounds[-1] if rec["ok"]]
+        if not succeeded:
+            return False
+        return all(rec["more"] is False for rec in succeeded)
 
     def status(self) -> dict:
         rounds_completed = self._rounds_completed()
@@ -259,6 +269,7 @@ class Discussion:
                 "by_seat": {
                     seat_id: {
                         "calls": self._calls_by_seat[seat_id],
+                        "failed": self._failed_by_seat.get(seat_id, 0),
                         "usage": copy.deepcopy(self._usage_by_seat[seat_id]),
                     }
                     for seat_id in self._calls_by_seat

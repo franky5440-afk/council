@@ -260,13 +260,13 @@ class Boundary5Test(unittest.TestCase):
         self._run_round(d, "有", "無")
         self.assertFalse(d.converged())
 
-    def test_timeout_not_converged_no_violation(self):
+    def test_timeout_converged_no_violation(self):
         d = state.Discussion("q", make_seats())
         d.begin_round()
         d.record_speech("a1", fail_result())
         d.record_speech("a2", ok_result())
         d.end_round()
-        self.assertFalse(d.converged())
+        self.assertTrue(d.converged())
         rec = d.rounds[-1][0]
         self.assertFalse(rec["violation"])
         self.assertTrue(rec["more"])
@@ -528,7 +528,8 @@ class RecordArbitrationTest(unittest.TestCase):
         self.assertEqual(len(d.arbitrations), 1)
         st = d.status()
         self.assertEqual(st["usage"]["calls"], 3)
-        self.assertEqual(st["usage"]["by_seat"]["arb"], {"calls": 1, "usage": {}})
+        self.assertEqual(st["usage"]["by_seat"]["arb"],
+                         {"calls": 1, "failed": 1, "usage": {}})
         for seat_id, per in before.items():
             self.assertEqual(st["usage"]["by_seat"][seat_id], per)
 
