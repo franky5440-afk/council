@@ -1,4 +1,6 @@
+import base64
 import json
+import re
 import sys
 import threading
 import unittest
@@ -16,7 +18,7 @@ STATIC_DIR = SRC_DIR / "static"
 INDEX_PATH = STATIC_DIR / "index.html"
 
 CSP_EXACT = ("default-src 'none'; script-src 'unsafe-inline'; "
-             "style-src 'unsafe-inline'; connect-src 'self'; img-src 'none'; "
+             "style-src 'unsafe-inline'; connect-src 'self'; img-src data:; "
              "form-action 'none'; base-uri 'none'")
 
 EVENT_KINDS = ("round_started", "speech", "round_finished",
@@ -213,12 +215,28 @@ class IndexHtmlStructureTest(unittest.TestCase):
         self.assertIn("display: none !important", self.source)
 
     def test_no_external_resources(self):
-        """CSP 是 img-src 'none'／default-src 'none'，外部資源一律載不到
-        （background-image: url(...)、@font-face 字型檔、data: URI 都被擋掉），
-        而 SVG 的 xmlns 屬性會帶進 http:// 踩爆既有的 test_no_http_urls。
-        ⇒ 不得出現 url() 與 <svg，一律用純 CSS 與 unicode 字元。"""
-        self.assertNotIn("url(", self.source)
+        """CSP 是 default-src 'none'，凡它擋掉的資源都會靜默留白，
+        而那件事在 Python 測試裡看不出來 ⇒ 這裡守住「頁面只引用被明確允許的資源」。
+
+        目前**恰好一個**例外：工作包 036 內嵌的淡化背景圖，走 data: URI，
+        對應 CSP 的 img-src data:。任何第二個 url()（外部字型、外部圖片、
+        指向網路的背景）都會讓這條翻紅——那正是要攔的東西。
+
+        <svg 仍然全面禁止：它的 xmlns 屬性會帶進 http:// 踩爆 test_no_http_urls。"""
+        self.assertEqual(self.source.count("url("), 1)
+        self.assertIn('url("data:image/jpeg;base64,', self.source)
         self.assertNotIn("<svg", self.source)
+
+    def test_background_data_uri_decodes_to_a_jpeg(self):
+        """背景是七萬多字元的 base64，沒有人會在 review 時用眼睛看它。
+        截斷或損壞不會讓任何其他測試翻紅（畫面只是背景不見）⇒ 這裡機械檢查一次。"""
+        match = re.search(
+            r'url\("data:image/jpeg;base64,([A-Za-z0-9+/=]+)"\)', self.source)
+        self.assertIsNotNone(match, "找不到背景圖的 data URI")
+        raw = base64.b64decode(match.group(1), validate=True)
+        self.assertTrue(raw.startswith(b"\xff\xd8\xff"), "不是 JPEG 開頭")
+        self.assertTrue(raw.rstrip().endswith(b"\xff\xd9"), "JPEG 結尾不完整（可能被截斷）")
+        self.assertGreater(len(raw), 20_000)
 
     def test_stat_tiles_present(self):
         """討論檢視最上方的三張統計卡：輪次／格式違規／總呼叫。"""

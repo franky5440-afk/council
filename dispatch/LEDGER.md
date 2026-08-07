@@ -507,3 +507,14 @@
 - 派工後工作區變更：
   - ` M start.sh`
   - `?? dispatch/packages/035-start-sh-reuse-running-server.md`
+
+## 2026-08-07 21:25 · 036-background-image.md
+
+- 模式：新開
+- session：`ses_02399d13affeXGZvmzOrAdBX3W`
+- 派工前 HEAD：`3342c4bedec9d4b192c36d178ffcfcf5d79e4af9`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M src/static/index.html`
+  - ` M tests/test_ui.py`
+  - `?? dispatch/packages/036-background-image.md`
