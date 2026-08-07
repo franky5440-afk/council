@@ -538,3 +538,19 @@
   - ` M dispatch/LEDGER.md`
   - `?? dispatch/packages/037a-2-diff-against-my-list.md`
   - `?? dispatch/packages/037a-macos-audit.md`
+
+## 2026-08-07 23:55 · 037c-usage-total-is-not-a-total.md
+
+- 模式：新開
+- session：`ses_023108d6affe4BUUHqMSeAbPiz`
+- 派工前 HEAD：`56acf2247367a6fa2232848d2ceae71f8e0a940d`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M src/cli.py`
+  - ` M src/engine/state.py`
+  - ` M src/static/index.html`
+  - ` M tests/test_engine_orchestrator.py`
+  - ` M tests/test_engine_state.py`
+  - ` M tests/test_ui.py`
+  - `?? dispatch/packages/037c-usage-total-is-not-a-total.md`
+  - `?? tests/test_contract_037c.py`
