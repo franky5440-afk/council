@@ -139,7 +139,6 @@ def _print_status(status) -> None:
     print(f"已收斂：{'是' if status['converged'] else '否'}")
     print(f"格式違規次數：{status['format_violations']}")
     print(f"總呼叫次數：{usage['calls']}")
-    print(f"累計 usage：{usage['total']}")
     for seat_id in sorted(usage["by_seat"]):
         per = usage["by_seat"][seat_id]
         line = f"  {seat_id}：calls={per['calls']}"

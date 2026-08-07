@@ -578,8 +578,6 @@ function renderUsage(status) {
   content.appendChild(note);
   if (!status || !status.usage) { return; }
   var usage = status.usage;
-  // 各席次分列排在累加區之前：累加區是同名欄位各自相加的混合體，
-  // 先看到它會把它讀成總計。
   Object.keys(usage.by_seat).sort().forEach(function (seatId) {
     var per = usage.by_seat[seatId];
     var block = document.createElement("div");
@@ -592,16 +590,14 @@ function renderUsage(status) {
     }
     content.appendChild(block);
   });
-  var total = usage.total;
-  if (total && Object.keys(total).length > 0) {
-    content.appendChild(renderUsageDict("各席次同名欄位累加", total));
-    var mixed = document.createElement("div");
-    mixed.className = "hint";
-    mixed.textContent = "⚠️ 各家 CLI 的欄位名稱不同（opencode 是 tokens.*，"
-      + "claude 是 input_tokens／output_tokens），上面這一區只是把名稱相同的欄位"
-      + "各自相加，不是所有席次的總和。要看真實用量請看上面各席次分列。";
-    content.appendChild(mixed);
-  } else {
+  var anyUsage = false;
+  Object.keys(usage.by_seat).forEach(function (seatId) {
+    var per = usage.by_seat[seatId];
+    if (per.usage && Object.keys(per.usage).length > 0) {
+      anyUsage = true;
+    }
+  });
+  if (!anyUsage) {
     var none = document.createElement("div");
     none.textContent = "（本次未取得用量統計）";
     content.appendChild(none);

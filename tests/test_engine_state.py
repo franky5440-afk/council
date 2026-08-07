@@ -294,8 +294,6 @@ class Boundary6Test(unittest.TestCase):
         self.assertEqual(
             st["usage"]["by_seat"]["a1"]["usage"]["input_tokens"], 10)
         self.assertEqual(st["usage"]["by_seat"]["a2"]["usage"]["tokens"]["input"], 3)
-        self.assertEqual(st["usage"]["total"]["input_tokens"], 10)
-        self.assertEqual(st["usage"]["total"]["tokens"]["input"], 3)
 
     def test_failed_call_counts(self):
         d = state.Discussion("q", make_seats())
@@ -305,7 +303,8 @@ class Boundary6Test(unittest.TestCase):
         d.end_round()
         st = d.status()
         self.assertEqual(st["usage"]["calls"], 2)
-        self.assertEqual(st["usage"]["total"], {})
+        self.assertEqual(st["usage"]["by_seat"]["a1"]["usage"], {})
+        self.assertEqual(st["usage"]["by_seat"]["a2"]["usage"], {})
 
     def test_status_usage_is_copy(self):
         d = state.Discussion("q", make_seats())
@@ -314,10 +313,8 @@ class Boundary6Test(unittest.TestCase):
         d.record_speech("a2", ok_result())
         d.end_round()
         first = d.status()
-        first["usage"]["total"]["input_tokens"] = 999
         first["usage"]["by_seat"]["a1"]["usage"]["input_tokens"] = 999
         second = d.status()
-        self.assertEqual(second["usage"]["total"]["input_tokens"], 10)
         self.assertEqual(second["usage"]["by_seat"]["a1"]["usage"]["input_tokens"], 10)
 
 
@@ -515,21 +512,25 @@ class RecordArbitrationTest(unittest.TestCase):
             usage={"input_tokens": 100, "output_tokens": 50}))
         st = d.status()
         self.assertEqual(st["usage"]["calls"], before["usage"]["calls"] + 1)
-        self.assertEqual(st["usage"]["total"]["input_tokens"], 100)
-        self.assertEqual(st["usage"]["total"]["output_tokens"], 50)
         self.assertIn("arb", st["usage"]["by_seat"])
         self.assertEqual(st["usage"]["by_seat"]["arb"]["calls"], 1)
+        self.assertEqual(
+            st["usage"]["by_seat"]["arb"]["usage"]["input_tokens"], 100)
+        self.assertEqual(
+            st["usage"]["by_seat"]["arb"]["usage"]["output_tokens"], 50)
 
     def test_failed_arbitration_still_counts(self):
         d = state.Discussion("q", make_seats())
         self._finished_round(d)
-        before_total = d.status()["usage"]["total"]
+        before = d.status()["usage"]["by_seat"]
         record = d.record_arbitration(fail_result())
         self.assertFalse(record["ok"])
         self.assertEqual(len(d.arbitrations), 1)
         st = d.status()
         self.assertEqual(st["usage"]["calls"], 3)
-        self.assertEqual(st["usage"]["total"], before_total)
+        self.assertEqual(st["usage"]["by_seat"]["arb"], {"calls": 1, "usage": {}})
+        for seat_id, per in before.items():
+            self.assertEqual(st["usage"]["by_seat"][seat_id], per)
 
     def test_arbitration_does_not_pollute_convergence(self):
         d = state.Discussion("q", make_seats())
@@ -573,7 +574,6 @@ class RecordArbitrationTest(unittest.TestCase):
         d.record_arbitration(ok_result(usage=usage))
         usage["input_tokens"] = 999
         st = d.status()
-        self.assertEqual(st["usage"]["total"]["input_tokens"], 100)
         self.assertEqual(
             st["usage"]["by_seat"]["arb"]["usage"]["input_tokens"], 100)
 

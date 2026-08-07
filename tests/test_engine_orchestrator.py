@@ -301,8 +301,9 @@ class RunRoundNormalTest(unittest.TestCase):
         self.assertTrue(status["converged"])
         self.assertEqual(status["format_violations"], 0)
         self.assertEqual(status["usage"]["calls"], 3)
-        self.assertEqual(status["usage"]["total"], {})
         self.assertEqual(set(status["usage"]["by_seat"]), {"a1", "a2", "a3"})
+        for seat_id in ("a1", "a2", "a3"):
+            self.assertEqual(status["usage"]["by_seat"][seat_id]["usage"], {})
 
 
 class RunRoundFailureTest(unittest.TestCase):

@@ -122,7 +122,6 @@ class Discussion:
         self.arbitrations = []
         self.phase = PHASE_READY
         self.rounds = []
-        self._usage_total = {}
         self._usage_by_seat = {}
         self._calls_total = 0
         self._calls_by_seat = {}
@@ -173,7 +172,6 @@ class Discussion:
         current.append(record)
         self._calls_total += 1
         self._calls_by_seat[seat_id] = self._calls_by_seat.get(seat_id, 0) + 1
-        self._usage_total = merge_usage(self._usage_total, result["usage"])
         prev = self._usage_by_seat.get(seat_id, {})
         self._usage_by_seat[seat_id] = merge_usage(prev, result["usage"])
         return record
@@ -227,7 +225,6 @@ class Discussion:
         self.arbitrations.append(record)
         self._calls_total += 1
         self._calls_by_seat[seat_id] = self._calls_by_seat.get(seat_id, 0) + 1
-        self._usage_total = merge_usage(self._usage_total, result["usage"])
         prev = self._usage_by_seat.get(seat_id, {})
         self._usage_by_seat[seat_id] = merge_usage(prev, result["usage"])
         return record
@@ -259,7 +256,6 @@ class Discussion:
             ),
             "usage": {
                 "calls": self._calls_total,
-                "total": copy.deepcopy(self._usage_total),
                 "by_seat": {
                     seat_id: {
                         "calls": self._calls_by_seat[seat_id],

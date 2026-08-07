@@ -183,11 +183,6 @@ class IndexHtmlStructureTest(unittest.TestCase):
         self.assertNotIn("usage-cost", self.source)
         self.assertIn("isCostKey", self.source)
 
-    def test_usage_total_is_labelled_as_not_a_sum(self):
-        """merge_usage() 按鍵名相加，而 opencode 與 claude 的鍵名完全不同
-        ⇒ total 區塊沒有任何欄位代表所有席次的真正總量，必須在畫面上講明白。"""
-        self.assertIn("不是所有席次的總和", self.source)
-
     def test_advisor_order_is_documented(self):
         """席次順序就是發言順序，這件事只有實作知道，使用者看不出來。
         「一行一席」也守在這裡：032 改版時它一度被寫成「一行一句」（工作包引用
