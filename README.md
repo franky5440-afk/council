@@ -17,7 +17,7 @@ manages its own login. What it consumes is **your own subscription quota**.
 |---|---|
 | **Status** | **Alpha, under active development.** The engine, the local server and the web UI now work end to end. Interfaces may still change without notice. |
 | **Platforms** | Linux and macOS only. **Windows is not supported** and will not work — see `SPEC.md` §8. |
-| **Prerequisites** | You must install and log into the CLIs yourself. council will not do it for you. |
+| **Prerequisites** | **Python 3.10 or newer**, and you must install and log into the CLIs yourself — council will not do it for you. See *Platform notes* below. |
 | **Cost** | Every round calls every advisor, and the full transcript is resent each round. **This burns your subscription quota quickly.** |
 | **Audience** | Intended for advanced users comfortable with CLI tooling who understand the quota cost. |
 | **Affiliation** | Not affiliated with, endorsed by, or supported by Anthropic, OpenAI, Google, or any model provider. |
@@ -25,6 +25,30 @@ manages its own login. What it consumes is **your own subscription quota**.
 CLI flags change between releases. The invocations council relies on were verified
 on 2026-08-03 against `claude` 2.1.220, `codex` 0.145.0, `gemini` 0.53.1 and
 `opencode` 1.18.11. Other versions may not work.
+
+### Platform notes
+
+**Python 3.10 or newer is required.** `src/adapters/` uses PEP 604 type
+annotations (`str | None`) and deliberately does not carry
+`from __future__ import annotations`, so an older interpreter fails at import
+time with `TypeError: unsupported operand type(s) for |`.
+
+On macOS this is easy to trip over: the `python3` shipped with the Xcode Command
+Line Tools is often 3.9.x, which is not enough. Check with `python3 --version`
+and install a newer one (python.org or Homebrew) if needed. On a machine with no
+Command Line Tools at all, `/usr/bin/python3` is a stub that only prompts you to
+install them.
+
+**On macOS, start council from a terminal.** A process launched from Finder or
+the Dock does not read your shell profile, so `PATH` will not include Homebrew's
+`/opt/homebrew/bin` (Apple Silicon) or `/usr/local/bin` (Intel). council would
+then report every advisor as *not found in PATH* even though the CLIs are
+installed and working.
+
+Verified on macOS 2026-08-07 (Apple Silicon, Python 3.13, bash 3.2.57): the test
+suite, the local server, the web UI in both Safari and Chrome, transcript export,
+and `./start.sh --dry` all behave as they do on Linux. Real CLI invocation on
+macOS has **not** been verified yet.
 
 ## How it works
 

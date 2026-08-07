@@ -432,8 +432,13 @@ websearch 正常呼叫，而檔案讀取工具**根本沒有被掛載**（模型
 
 ## 7. 技術選型
 
-- **Python 3**，標準函式庫優先，非必要不加依賴。理由：本機是 2012 iMac，
+- **Python 3.10 以上**，標準函式庫優先，非必要不加依賴。理由：本機是 2012 iMac，
   避免建置步驟與重框架；同層 `lottrey` 亦為 Python。
+  ⚠️ **下限是 3.10 而不是「Python 3」**：`src/adapters/` 用 PEP 604 的 `X | None`
+  型別註解（`base.py:11,106,107` 與四個 adapter 的 `ask()`，共 7 處），且**刻意不加**
+  `from __future__ import annotations`。舊版直譯器會在 import 階段就丟
+  `TypeError: unsupported operand type(s) for |`。
+  ⚠️ macOS 內建的 `/usr/bin/python3`（Xcode Command Line Tools）常是 3.9.x，**不足**。
 - 本機服務：`http.server.ThreadingHTTPServer` + SSE 推送。討論本身是序列的，
   併發需求極低，不值得為它引入 web 框架。
 - UI：單頁 HTML + 原生 JS，無建置步驟。
