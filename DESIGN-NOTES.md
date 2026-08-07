@@ -10,7 +10,7 @@
 ⚠️ **本檔不是規格。** 契約的唯一來源是 `SPEC.md`，規則的唯一來源是 `AGENTS.md`。
 本檔只解釋「為什麼」，**不重述它們的任何一條**——一旦重述，兩份就會各自過期。
 
-⚠️ 每一條都是實作或審查時踩出來的，日期截至 2026-08-07（工作包 014～032）。
+⚠️ 每一條都是實作或審查時踩出來的，日期截至 2026-08-07（工作包 014～034）。
 **改了對應的程式碼就要回來改這裡**，否則它會變成下一個誤導人的過期文件。
 
 ---
@@ -80,6 +80,7 @@
 | `POST` | `/api/discussions/<id>/arbitration` | 🔴 是 |
 | `GET` | `/api/discussions/<id>/events` | 否（SSE） |
 | `GET` | `/api/discussions/<id>/export.md` | 否 |
+| `POST` | `/api/shutdown` | 否（停伺服器） |
 
 （⚠️ 出題前仍請直接讀 `src/server.py`，本表會過期。）前四條回同一個形狀：
 `{id, live, busy, question, context_chars, seats, status}`。事件種類：`round_started`／
@@ -110,6 +111,20 @@
   `Host` 正確、`Origin` 同源、`Content-Type` 自己設、同源不需要 CORS，四道全過。
   ⚠️ **`frame-ancestors` 寫在 `<meta>` 裡無效**，瀏覽器只認回應標頭（`report-uri`、
   `sandbox` 同理）。⚠️ 兩個 CSP 政策**不會合併**，各自獨立生效取交集。
+- 🔴 **`POST /api/shutdown` 掛在 `_gate()` 之後，不得有「反正是本機」的後門。**
+  三道守門各有一條測試斷言**被擋下之後伺服器仍然活著**——只斷言狀態碼不夠，
+  狀態碼對但伺服器已經停掉一樣是災難。（突變實測：把路由移到守門之前，那三條全部翻紅。）
+- 🔴 **回應必須先送完才能停迴圈**：`_reply_json` → `wfile.flush()` → **另開一條 daemon
+  執行緒**呼叫 `self.server.shutdown()`。在 handler 裡同步呼叫會等 `serve_forever()`
+  退出（預設 poll 0.5 秒），期間回應還沒送出 ⇒ 瀏覽器看到連線被重置，
+  **使用者無法分辨「成功關閉」與「當掉了」**。
+  ⚠️ 這個順序**今天沒有測試守得住**（見 §9）：`ThreadingHTTPServer` 下寫反也不會產生
+  症狀，要換成非 threading 的 `HTTPServer` 才會。它防的是未來有人改 `_Server` 的基底類別。
+- 🔴 **`shutdown()` 只停迴圈，不關監聽 socket**（實測）。只呼叫它的話那個埠**還連得上、
+  但永遠不會有回應**——使用者看到的是一直轉圈，比「連線被拒」更難判斷。
+  ⇒ `serve.py` 在 `serve_forever()` 返回後於 `finally` 補 `httpd.server_close()`。
+  ⚠️ 對已停止的伺服器再呼叫一次 `shutdown()` 會立刻返回（0.00 秒）、不會掛住
+  ⇒ 測試的 `addCleanup(srv.shutdown)` 是安全的。
 
 ## 5. 單頁 web UI（`src/static/index.html`，約 700 行，零依賴零建置）
 
@@ -137,6 +152,14 @@
   刻意接受：兩者靠文字分得出來，為了配色去動 `updateModeBadge()` 不划算。
 - ⚠️ `.badge-row` 這個 class **沒有對應的 CSS 規則**。無害——徽章靠自己的 `.badge-small`
   排版。留著當掛點，不是漏掉的規則。
+- 🔴 **`--open` 用 stdlib 的 `webbrowser`，不得寫死 `xdg-open`。** 它自己會在 Linux 用
+  `xdg-open`、macOS 用 `open`；寫死其中一個等於把 macOS 支援做掉。
+  **開啟時機在 `build_server()` 之後、`serve_forever()` 之前**——實測確認那時 socket
+  已 bind＋listen，連線排進 backlog 不會被拒。🔴 **不要改成「睡幾秒再開」**，那是猜的。
+- 🔴 **關閉之後 `onLoad()` 直接早退（`stopped` 旗標），不要改 `showForm()`／
+  `openDiscussion()`。** `hashchange` 監聽器在伺服器停掉後仍然活著，而那兩個函式都不會
+  藏起 `#stopped-view` ⇒ 按上一頁會讓兩個畫面疊在一起。在源頭擋（頁面已是終態、不准
+  再切換）比在每個切換點各補一行可靠——後者將來多一個切換點就會再漏一次。
 
 ## 6. 逐字稿匯出（`GET /api/discussions/<id>/export.md`）
 
@@ -181,7 +204,7 @@ permission:
 - **相位標籤 `phaseLabel()` 刻意沒動**：我提過 `ready` →「準備中」讀起來像系統在忙也該改，
   **Frank 說只改按鈕即可。**
 
-## 9. 沒有測試守得住的四件事（改到那裡自己記得）
+## 9. 沒有測試守得住的五件事（改到那裡自己記得）
 
 本專案沒有 DOM 測試環境（§7 明訂無建置步驟），以下是刻意接受的缺口：
 
@@ -191,6 +214,7 @@ permission:
 | `at_cap` 分支排在最前面的順序 | 移到後面不會翻紅（今天 `at_cap` 為真時 `rounds_completed` 不可能是 0），它靠程式碼註解 |
 | 「匯出檔名要用 `session.id`」 | 對不上的 id 一律 404 ⇒ 任何實作下都不會翻紅 |
 | 用量面板的欄位呈現 | 見下方 §10 |
+| `_post_shutdown` 裡「回應先送完，才能停迴圈」的順序 | 寫反了測試照樣全過。`ThreadingHTTPServer` 下不會產生症狀，換成 `HTTPServer` 才會。突變實測確認**沒有任何測試翻紅** |
 
 ## 10. 用量數字為什麼長那樣（不是 bug，是呈現問題）
 
