@@ -455,6 +455,7 @@ var live = null;
 var lastStatus = null;
 var es = null;
 var arbitrationPlaceholder = null;
+var stopped = false;
 
 function $(id) { return document.getElementById(id); }
 
@@ -705,6 +706,7 @@ function showForm() {
 }
 
 function showStopped(message) {
+  stopped = true;
   closeSse();
   $("status-bar").hidden = true;
   $("form-view").hidden = true;
@@ -883,6 +885,9 @@ function openDiscussion(id) {
 }
 
 function onLoad() {
+  // 伺服器已經關掉之後，頁面就是終態：再切換畫面只會讓「已關閉」面板
+  // 跟表單／討論畫面疊在一起，而且那時什麼請求都發不出去。
+  if (stopped) { return; }
   var id = location.hash.slice(1);
   if (id) {
     openDiscussion(id);

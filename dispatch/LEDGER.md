@@ -486,3 +486,14 @@
   - ` M tests/test_ui.py`
   - `?? dispatch/packages/033-abort-and-launcher.md`
   - `?? start.sh`
+
+## 2026-08-07 15:01 · 034-fix-033-navigation-after-stop.md
+
+- 模式：接續 ses_0250c670dffeKdbCLoimrLAuAc
+- session：`ses_0250c670dffeKdbCLoimrLAuAc`
+- 派工前 HEAD：`6ca21bb5807fef76afe01ea9ae9dc048cefd1e0b`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M src/static/index.html`
+  - ` M tests/test_ui.py`
+  - `?? dispatch/packages/034-fix-033-navigation-after-stop.md`

@@ -255,6 +255,16 @@ class IndexHtmlStructureTest(unittest.TestCase):
         否則 $("context-chars-text") 會抓到錯的元素。"""
         self.assertEqual(self.source.count('id="context-chars-text"'), 1)
 
+    def test_navigation_disabled_after_stop(self):
+        """關掉伺服器之後 hashchange 仍會觸發 onLoad()，而 showForm() 與
+        openDiscussion() 都不會藏起 #stopped-view ⇒ 按上一頁會讓兩個畫面
+        疊在一起。修在源頭：關閉之後 onLoad() 直接早退。
+        ⚠️ 這是結構性斷言（只檢查原始碼字串），JS 的實際行為沒有自動化測試，
+        本專案刻意不建 DOM 測試環境（SPEC.md §7：無建置步驟）。"""
+        self.assertIn("var stopped = false;", self.source)
+        self.assertIn("stopped = true;", self.source)
+        self.assertIn("if (stopped) { return; }", self.source)
+
 
 if __name__ == "__main__":
     unittest.main()
