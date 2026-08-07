@@ -58,18 +58,53 @@ Seats are not hardcoded. In the web UI, the "advisors" field takes one seat per
 line and **top-to-bottom is the speaking order**; on the command line it is the
 order of the `--advisor` flags (see the `ADVISORS` array in `run.sh`).
 
-The format is always `<cli>[:<model>]`, for example:
+The format is always `<cli>[:<model>]`. Omit the model to use that CLI's own
+default. A complete, all-free configuration you can paste into the advisors
+field:
 
 ```
 opencode:opencode/deepseek-v4-flash-free
-gemini
-claude:claude-sonnet-5
+opencode:opencode/nemotron-3-ultra-free
+opencode:opencode/ling-3.0-flash-free
 ```
 
-Omit the model to use that CLI's own default. Ask each CLI for its model list
-(`opencode models`, and the equivalent for the others) — council does not keep a
-model list and does not check whether a model name exists: a typo simply makes
-that one seat report a failure.
+#### Finding out which models you can name
+
+council keeps no model list, so this is a question for each CLI — and only one of
+the four can enumerate them:
+
+| CLI | How to see the names |
+|---|---|
+| `opencode` | `opencode models` — one id per line, several hundred of them. For the free tier: `opencode models \| grep -E "^opencode/.*-free$"` |
+| `claude` | No listing command. `--model` takes an alias (`opus`, `sonnet`, `fable`) or a full name such as `claude-fable-5` |
+| `codex` | No listing command; `-m/--model` takes a name you already know |
+| `gemini` | No listing command; `-m/--model` takes a name you already know |
+
+For the three without a listing command, that CLI's own documentation is the
+source of truth. Leaving the model off entirely (just `claude`, `gemini`, or
+`codex`) always works and uses whatever that CLI is configured to use.
+
+#### If you get the name wrong
+
+council does not validate model names — it cannot, since it keeps no list. The
+name goes straight to the CLI, the CLI fails, and **that one seat reports a
+failure while the discussion carries on without it**; the transcript records
+`（未回應：<error>）` for that seat. So if a seat contributes nothing, check it
+against this section before concluding the model itself is broken.
+
+#### The arbiter field is not a fourth advisor
+
+The advisors field holds one to three seats that each speak, in order, every
+round. The arbiter is a single seat that **never joins the rounds** — it is
+called only when you press the arbiter button, and it then reads the whole
+transcript at once. Its answer is not scored for stance or convergence.
+
+The cost consequence follows from that: an advisor is called once per round,
+whereas the arbiter is called only when you ask — but with the longest prompt in
+the system. Putting a paid CLI in an advisor seat multiplies its cost by the
+number of rounds; putting it in the arbiter seat does not. The default in
+`run.sh` reflects this: three free advisors, and `claude` as an arbiter that is
+never called unless you add `--arbitrate`.
 
 ## Running it
 
@@ -177,17 +212,47 @@ council 驅動**你自己安裝並登入的官方 CLI**（`claude`、`codex`、`
 **席次不是寫死的。** web UI 的「顧問」欄位一行一席，**由上到下就是發言順序**；
 命令列則是 `--advisor` 參數出現的順序（見 `run.sh` 裡的 `ADVISORS` 陣列）。
 
-格式一律是 `<cli>[:<模型>]`，例如：
+格式一律是 `<cli>[:<模型>]`，省略模型就用該 CLI 自己的預設。
+可以直接貼進「顧問」欄位的全免費配置：
 
 ```
 opencode:opencode/deepseek-v4-flash-free
-gemini
-claude:claude-sonnet-5
+opencode:opencode/nemotron-3-ultra-free
+opencode:opencode/ling-3.0-flash-free
 ```
 
-省略模型就用該 CLI 自己的預設。可用模型請用各 CLI 自己的指令查
-（opencode 是 `opencode models`，其他家同理）——council 不維護模型清單，
-也不會替你檢查模型名是否存在：**打錯就是那一席回報失敗**。
+#### 怎麼知道有哪些模型可以填
+
+council 不維護模型清單，所以這件事要問各家 CLI。**而四家裡只有一家查得到**：
+
+| CLI | 怎麼查 |
+|---|---|
+| `opencode` | `opencode models`，一行一個 id、有好幾百個。免費的那些：`opencode models \| grep -E "^opencode/.*-free$"` |
+| `claude` | **沒有列出清單的指令。** `--model` 收 alias（`opus`／`sonnet`／`fable`）或完整名稱（例如 `claude-fable-5`） |
+| `codex` | **沒有列出清單的指令**，`-m/--model` 收你已經知道的名字 |
+| `gemini` | **沒有列出清單的指令**，`-m/--model` 收你已經知道的名字 |
+
+沒有查詢指令的那三家，以該 CLI 自己的文件為準。
+**不填模型永遠是安全的**（直接寫 `claude`／`gemini`／`codex`），
+那會用它自己設定好的預設。
+
+#### 填錯會怎樣
+
+council **不會檢查模型名是否存在**——它沒有清單，也查不了。打錯的名字會原樣送給該
+CLI，CLI 失敗，**那一席回報失敗，討論照樣繼續**，逐字稿上那一席寫的是
+`（未回應：<錯誤>）`。所以看到某一席一直沒有內容，先回來對一下這一節，
+不要先怪模型壞掉。
+
+#### 仲裁者欄位不是第四位顧問
+
+「顧問」欄位放 1～3 席，**每一輪都會依序各發言一次**。仲裁者是**不參與輪替**的單獨
+一席，只有你按「叫仲裁者」才會被呼叫，那時它一次讀完整份逐字稿；它的回答不計立場、
+也不計入收斂判定。
+
+額度的後果直接由此而來：**顧問席次是「每輪 × 每席」各一次呼叫，仲裁者是「你按幾次
+就幾次」，但每次都帶著全場最長的 prompt。** 所以把付費 CLI 放進顧問席，成本會隨輪數
+倍增；放在仲裁者席則不會。`run.sh` 的預設配置就是照這個道理設的——三席免費顧問，
+仲裁者是 `claude` 但**刻意沒加 `--arbitrate`**，不主動呼叫。
 
 ## 怎麼跑
 
