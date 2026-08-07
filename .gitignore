@@ -17,5 +17,9 @@ HANDOFF.md
 AGENTS.md
 CLAUDE.md
 
+# 給 Frank 看的產出（預覽、報告、匯出的逐字稿）。刻意不進版控：
+# 是拋棄式的中間產物，而且常內嵌大塊 base64，塞進公開 repo 只會讓 diff 沒法讀。
+output/
+
 __pycache__/
 *.pyc
