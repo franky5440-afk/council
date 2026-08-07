@@ -518,3 +518,23 @@
   - ` M src/static/index.html`
   - ` M tests/test_ui.py`
   - `?? dispatch/packages/036-background-image.md`
+
+## 2026-08-07 22:14 · 037a-macos-audit.md
+
+- 模式：新開
+- session：`ses_0236d191cffevKVjf0RKOWJozf`
+- 派工前 HEAD：`4db506fe5cdc427ea76a059fd66751da3e16783d`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - `?? dispatch/packages/037a-macos-audit.md`
+
+## 2026-08-07 22:28 · 037a-2-diff-against-my-list.md
+
+- 模式：接續 ses_0236d191cffevKVjf0RKOWJozf
+- session：`ses_0236d191cffevKVjf0RKOWJozf`
+- 派工前 HEAD：`4db506fe5cdc427ea76a059fd66751da3e16783d`（工作區未提交項目 3 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M dispatch/LEDGER.md`
+  - `?? dispatch/packages/037a-2-diff-against-my-list.md`
+  - `?? dispatch/packages/037a-macos-audit.md`
