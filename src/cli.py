@@ -141,7 +141,10 @@ def _print_status(status) -> None:
     print(f"總呼叫次數：{usage['calls']}")
     for seat_id in sorted(usage["by_seat"]):
         per = usage["by_seat"][seat_id]
+        failed = per.get("failed", 0)
         line = f"  {seat_id}：calls={per['calls']}"
+        if failed:
+            line += f"，failed={failed}"
         if per["usage"]:
             line += f"，usage={per['usage']}"
         print(line)

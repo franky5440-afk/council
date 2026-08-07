@@ -142,7 +142,11 @@ def render_markdown(meta, events) -> str:
     lines.append("")
     for seat_id in sorted(usage["by_seat"]):
         per = usage["by_seat"][seat_id]
-        lines.append("- " + seat_id + "：calls=" + str(per["calls"]))
+        failed = per.get("failed", 0)
+        line = "- " + seat_id + "：calls=" + str(per["calls"])
+        if failed:
+            line += "，failed=" + str(failed)
+        lines.append(line)
         seat_usage = per["usage"]
         if seat_usage:
             flat = _flatten_usage(seat_usage)
