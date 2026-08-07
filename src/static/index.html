@@ -99,6 +99,7 @@ h1 { font-size: 1.35rem; font-weight: 600; margin: 0 0 4px; }
 .chip:empty { display: none; }
 .chip-busy { color: var(--accent); }
 .chip-alert { color: var(--danger); border-color: var(--danger); }
+#status-bar:not(:has(.chip:not(:empty))) { display: none; }
 
 #mode-badge {
   display: inline-flex;
@@ -109,6 +110,12 @@ h1 { font-size: 1.35rem; font-weight: 600; margin: 0 0 4px; }
 }
 #mode-badge.badge-gray { background: var(--panel-2); color: var(--muted); }
 #mode-badge.badge-live { background: var(--danger); color: #fff; font-weight: 600; }
+#sidebar #btn-shutdown {
+  width: 100%;
+  margin-top: 12px;
+  color: var(--danger);
+  border-color: var(--danger);
+}
 
 .btn {
   font: inherit;
@@ -160,6 +167,17 @@ h1 { font-size: 1.35rem; font-weight: 600; margin: 0 0 4px; }
 #form-view input[type="file"]:focus {
   outline: none;
   border-color: var(--accent);
+}
+#form-view input[type="file"]::file-selector-button {
+  font: inherit;
+  font-size: .85rem;
+  background: var(--panel-3);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  margin-right: 10px;
+  cursor: pointer;
 }
 .hint {
   display: block;
@@ -338,6 +356,7 @@ code {
     <div id="seat-list"></div>
     <div class="sidebar-spacer"></div>
     <div id="mode-badge" class="badge badge-gray">模式：尚未確認</div>
+    <button id="btn-shutdown" class="btn btn-ghost">⏻ 關閉 council</button>
   </aside>
 
   <div class="main-col">
@@ -362,7 +381,7 @@ code {
             <textarea id="advisors" rows="4">opencode:opencode/deepseek-v4-flash-free
 opencode:opencode/nemotron-3-ultra-free
 opencode:opencode/ling-3.0-flash-free</textarea>
-            <span class="hint">可用的 cli：claude／codex／gemini／opencode，可以混搭。模型清單用各 CLI 自己的指令查（opencode 是 <code>opencode models</code>）。換模型就是改這一欄的文字，不必動任何程式碼。</span>
+            <span class="hint">可用的 cli：claude／codex／gemini／opencode，可以混搭。模型清單用各 CLI 自己的指令查（opencode 是 <code>opencode models</code>）。換模型就是改這一欄的文字，不必動任何程式碼。完整說明（各家 CLI 查模型的指令、打錯模型名會怎樣）見 README 的「換模型／調整發言順序」。</span>
           </div>
           <div class="field">
             <label for="arbiter">仲裁者（不參與討論；按「叫仲裁者」才會呼叫它）</label>
@@ -410,6 +429,14 @@ opencode:opencode/ling-3.0-flash-free</textarea>
           <button id="btn-arbitration" class="btn btn-ghost">⚖ 叫仲裁者</button>
           <a id="btn-export" class="btn btn-ghost" download>↓ 匯出 Markdown</a>
           <span id="live-cost-warning"></span>
+        </div>
+      </div>
+
+      <div id="stopped-view" hidden>
+        <h1>council 已關閉</h1>
+        <div class="question-card">
+          <div id="stopped-reason"></div>
+          <span class="hint">記憶體裡的討論已經全部消失——council 不把討論寫到磁碟。要再開一場討論，重新啟動 council 即可。</span>
         </div>
       </div>
     </main>
@@ -677,6 +704,15 @@ function showForm() {
   renderUsage(null);
 }
 
+function showStopped(message) {
+  closeSse();
+  $("status-bar").hidden = true;
+  $("form-view").hidden = true;
+  $("discussion-view").hidden = true;
+  $("stopped-view").hidden = false;
+  $("stopped-reason").textContent = message;
+}
+
 function renderDiscussion(data) {
   currentId = data.id;
   $("btn-export").href = "/api/discussions/" + data.id + "/export.md";
@@ -897,6 +933,34 @@ $("btn-arbitration").addEventListener("click", function () {
 
 $("btn-new").addEventListener("click", function () {
   location.hash = "";
+});
+
+$("btn-shutdown").addEventListener("click", function () {
+  // 1. 先問。使用者說不要就什麼都不做，一個請求都不發。
+  var ok = window.confirm(
+    "確定要關閉 council 嗎？\n\n" +
+    "伺服器會立刻停止，記憶體裡的討論會全部消失（council 不把討論寫到磁碟）。\n" +
+    "想留下逐字稿的話，先按取消，用「↓ 匯出 Markdown」存檔之後再關。");
+  if (!ok) { return; }
+  // 2. 🔴 一定要在發出請求之前關掉 SSE。伺服器一停，EventSource 會觸發
+  //    onerror、把畫面訊息蓋成「連線中斷，瀏覽器會自動重連」，而且會無限重試
+  //    ——那對「使用者自己按的關閉」是錯的語氣，讀起來像故障。
+  closeSse();
+  // 3. 防連按。
+  $("btn-shutdown").disabled = true;
+  // 4. 發請求。
+  postJson("/api/shutdown", {}).then(function (result) {
+    if (result.status === 200) {
+      showStopped("你按下了「關閉 council」，伺服器已經停止，這個分頁不會再更新。");
+    } else {
+      $("btn-shutdown").disabled = false;
+      $("st-sse").textContent =
+        (result.data && result.data.error) || ("HTTP " + result.status);
+    }
+  }).catch(function () {
+    // 回應理論上會完整送達（已實測），但真的斷了也不要謊稱成功。
+    showStopped("已送出關閉請求，但在收到回應之前連線就中斷了；伺服器很可能已經停止。");
+  });
 });
 
 $("context-file").addEventListener("change", function () {

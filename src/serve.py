@@ -7,6 +7,7 @@
 
 import argparse
 import sys
+import webbrowser
 
 from adapters import ADAPTERS
 from engine import orchestrator
@@ -24,6 +25,9 @@ def main(argv=None) -> int:
         help="真實呼叫各家 CLI（會消耗訂閱額度）。不加此旗標一律是 dry-run，不碰任何 CLI")
     parser.add_argument("--port", type=int, default=8765,
                         help="監聽埠號（預設 8765）")
+    parser.add_argument(
+        "--open", action="store_true",
+        help="啟動後自動用系統預設瀏覽器開啟頁面")
     parser.add_argument(
         "--timeout-s", type=int, default=orchestrator.DEFAULT_TIMEOUT_S,
         help=f"單次呼叫逾時秒數（預設 {orchestrator.DEFAULT_TIMEOUT_S}）")
@@ -46,11 +50,19 @@ def main(argv=None) -> int:
     httpd = server.build_server(
         ask_fn=ask_fn, live=live, port=args.port,
         timeout_s=args.timeout_s, max_chars=args.max_chars)
-    print(f"http://127.0.0.1:{httpd.server_address[1]}/")
+    url = f"http://127.0.0.1:{httpd.server_address[1]}/"
+    print(url)
+    if args.open and not webbrowser.open(url):
+        print("（無法自動開啟瀏覽器，請自己貼上上面的網址）")
     try:
         httpd.serve_forever()
+        print("已由網頁的「關閉 council」停止；討論只在記憶體，已全部消失。")
     except KeyboardInterrupt:
         print("已停止；討論只在記憶體，已全部消失。")
+    finally:
+        # shutdown() 只停迴圈、不關監聽 socket：不補這一行，那個埠會變成
+        # 「連得上但永遠沒有回應」，比連線被拒更難判斷（實測確認）。
+        httpd.server_close()
     return 0
 
 

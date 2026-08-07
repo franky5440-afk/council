@@ -471,3 +471,18 @@
   - ` M src/static/index.html`
   - ` M tests/test_ui.py`
   - `?? dispatch/packages/032-ui-redesign.md`
+
+## 2026-08-07 14:40 · 033-abort-and-launcher.md
+
+- 模式：新開
+- session：`ses_0250c670dffeKdbCLoimrLAuAc`
+- 派工前 HEAD：`2deb8c00df5cf6e2fc21b2564a6e48c42cd0fd81`（工作區未提交項目 1 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M src/serve.py`
+  - ` M src/server.py`
+  - ` M src/static/index.html`
+  - ` M tests/test_server.py`
+  - ` M tests/test_ui.py`
+  - `?? dispatch/packages/033-abort-and-launcher.md`
+  - `?? start.sh`

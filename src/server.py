@@ -6,6 +6,7 @@ orchestrator.py 同一個手法），因此不得 import adapters。伺服器也
 """
 
 import json
+import threading
 import time
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -93,14 +94,18 @@ class _Handler(BaseHTTPRequestHandler):
                 else:
                     self._reply_error(404, "找不到該路徑")
             elif self.command == "POST":
-                if kind not in ("discussions", "rounds", "arbitration"):
+                is_shutdown = urlparse(self.path).path == "/api/shutdown"
+                if not is_shutdown and kind not in (
+                        "discussions", "rounds", "arbitration"):
                     self._reply_error(404, "找不到該路徑")
                     return
                 body = self._parse_json_body(self._read_body())
                 if body is None:
                     self._reply_error(400, "請求 body 不是合法的 JSON 物件")
                     return
-                if kind == "discussions":
+                if is_shutdown:
+                    self._post_shutdown(body)
+                elif kind == "discussions":
                     self._post_discussions(body)
                 elif kind == "rounds":
                     self._post_rounds(arg, body)
@@ -365,6 +370,17 @@ class _Handler(BaseHTTPRequestHandler):
             session.release()
 
         self._reply_json(200, self._common_shape(session))
+
+    def _post_shutdown(self, body) -> None:
+        if body:
+            self._reply_error(400, "shutdown 不接受任何 body 鍵")
+            return
+        # 🔴 順序就是規格，不可對調：回應必須先完整送出去，才能停迴圈。
+        # 反過來（handler 裡同步 shutdown()）會讓瀏覽器看到連線被重置，
+        # 使用者分不出「成功關閉」與「當掉了」。
+        self._reply_json(200, {"stopping": True})
+        self.wfile.flush()
+        threading.Thread(target=self.server.shutdown, daemon=True).start()
 
     def _get_events(self, session_id) -> None:
         session = self.server.store.get(session_id)

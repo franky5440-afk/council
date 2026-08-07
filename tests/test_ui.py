@@ -234,6 +234,27 @@ class IndexHtmlStructureTest(unittest.TestCase):
         for var in ("--accent", "--bg", "--panel", "--text", "--muted"):
             self.assertIn(var + ":", self.source)
 
+    def test_shutdown_button_present(self):
+        self.assertIn('id="btn-shutdown"', self.source)
+
+    def test_stopped_view_present(self):
+        self.assertIn('id="stopped-view"', self.source)
+        self.assertIn('id="stopped-reason"', self.source)
+
+    def test_shutdown_has_second_confirm(self):
+        """中止前要有二次確認——按錯一下整台伺服器就關了、討論全沒。
+        ⚠️ 這是結構性斷言（只檢查原始碼字串），JS 的實際行為沒有自動化測試，
+        本專案刻意不建 DOM 測試環境（SPEC.md §7：無建置步驟）。"""
+        self.assertIn("想留下逐字稿的話", self.source)
+
+    def test_readme_pointer_present(self):
+        self.assertIn("見 README 的「換模型／調整發言順序」", self.source)
+
+    def test_context_chars_text_id_appears_once(self):
+        """討論檢視已在用 #context-chars-text；新增畫面不准重複用同一個 id，
+        否則 $("context-chars-text") 會抓到錯的元素。"""
+        self.assertEqual(self.source.count('id="context-chars-text"'), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

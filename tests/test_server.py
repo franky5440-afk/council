@@ -697,5 +697,91 @@ class HostWhitelistTest(ServerCase):
         self.assertEqual(status, 200, resp_body)
 
 
+class ShutdownTest(unittest.TestCase):
+    """工作包 033：POST /api/shutdown。
+
+    「回應先送完」的證明：第 1 條能從 request() 讀到完整 body，代表 handler
+    沒有在回應送出前就同步關掉迴圈——反過來的話瀏覽器看到連線被重置，
+    使用者分不出「成功關閉」與「當掉了」（§3 前提 2、3 實測確認）。
+
+    🔴 第 4～7、9 條的「伺服器仍活著」是本 class 最重要的斷言：023 的教訓是
+    上一個新增的 POST 端點在守門上開了洞、沒有任何測試守住它。只斷言狀態碼
+    不夠——狀態碼對但伺服器已經停掉，一樣是災難。"""
+
+    def start(self):
+        srv = server.build_server(ask_fn=make_ask_fn(), live=False, port=0)
+        thread = threading.Thread(target=srv.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(srv.server_close)
+        self.addCleanup(srv.shutdown)
+        return srv, srv.server_address[1], thread
+
+    def test_shutdown_200_with_stopping_true(self):
+        srv, port, thread = self.start()
+        status, _, resp_body = request("POST", port, "/api/shutdown", {})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(resp_body), {"stopping": True})
+
+    def test_shutdown_actually_stops_loop(self):
+        srv, port, thread = self.start()
+        status, _, _ = request("POST", port, "/api/shutdown", {})
+        self.assertEqual(status, 200)
+        thread.join(timeout=5)
+        self.assertFalse(thread.is_alive())
+
+    def test_shutdown_response_fully_delivered_before_stop(self):
+        # 守的是「回應先送完」：能從 request() 讀到完整 body，代表回應已在
+        # shutdown() 停迴圈之前送達（§3 前提 2、3 實測確認）。
+        srv, port, thread = self.start()
+        status, _, resp_body = request("POST", port, "/api/shutdown", {})
+        self.assertEqual(status, 200)
+        self.assertEqual(resp_body, b'{"stopping": true}')
+
+    def test_shutdown_cross_origin_blocked_server_still_alive(self):
+        srv, port, thread = self.start()
+        status, _, _ = request(
+            "POST", port, "/api/shutdown", {},
+            headers={"Origin": "http://evil.example.com"})
+        self.assertEqual(status, 403)
+        self.assertTrue(thread.is_alive())
+
+    def test_shutdown_bad_host_blocked_server_still_alive(self):
+        srv, port, thread = self.start()
+        status, _, _ = request(
+            "POST", port, "/api/shutdown", {},
+            headers={"Host": "evil.example.com"})
+        self.assertEqual(status, 403)
+        self.assertTrue(thread.is_alive())
+
+    def test_shutdown_wrong_content_type_415_server_still_alive(self):
+        srv, port, thread = self.start()
+        status, _, _ = request(
+            "POST", port, "/api/shutdown", {},
+            headers={"Content-Type": "text/plain"})
+        self.assertEqual(status, 415)
+        self.assertTrue(thread.is_alive())
+
+    def test_shutdown_body_key_rejected_400_server_still_alive(self):
+        srv, port, thread = self.start()
+        status, _, resp_body = request("POST", port, "/api/shutdown", {"x": 1})
+        self.assertEqual(status, 400)
+        self.assertIn("不接受任何 body 鍵", resp_body.decode("utf-8"))
+        self.assertTrue(thread.is_alive())
+
+    def test_shutdown_empty_body_ok(self):
+        srv, port, thread = self.start()
+        status, _, resp_body = request(
+            "POST", port, "/api/shutdown",
+            headers={"Content-Type": "application/json"})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(resp_body), {"stopping": True})
+
+    def test_shutdown_get_404_server_still_alive(self):
+        srv, port, thread = self.start()
+        status, _, _ = request("GET", port, "/api/shutdown")
+        self.assertEqual(status, 404)
+        self.assertTrue(thread.is_alive())
+
+
 if __name__ == "__main__":
     unittest.main()
