@@ -78,6 +78,7 @@ its own**. It stops and waits for you. See `SPEC.md` §5 for all six.
 
 ### Changing models and speaking order
 
+You can have 1–3 advisors plus exactly one arbiter — 2 to 4 seats in total.
 Seats are not hardcoded. In the web UI, the "advisors" field takes one seat per
 line and **top-to-bottom is the speaking order**; on the command line it is the
 order of the `--advisor` flags (see the `ADVISORS` array in `run.sh`).
@@ -87,9 +88,8 @@ default. A complete, all-free configuration you can paste into the advisors
 field:
 
 ```
-opencode:opencode/deepseek-v4-flash-free
 opencode:opencode/nemotron-3-ultra-free
-opencode:opencode/ling-3.0-flash-free
+opencode:opencode/laguna-s-2.1-free
 ```
 
 #### Finding out which models you can name
@@ -116,6 +116,17 @@ failure while the discussion carries on without it**; the transcript records
 `（未回應：<error>）` for that seat. So if a seat contributes nothing, check it
 against this section before concluding the model itself is broken.
 
+#### Free models disappear — that is normal
+
+The free-model list changes constantly: a model gets delisted or renamed, or
+your account is not entitled to it and the CLI returns 401. council does not
+track this and cannot — it keeps no model list. So **check for yourself before
+choosing seats** (`opencode models`); any model name in this README is only an
+example from the moment it was written. A broken seat does not drag down the
+round: the rest keep speaking, arbitration still works, and since 038 **a
+failed seat no longer blocks convergence** — its failure count is shown in the
+usage panel.
+
 #### The arbiter field is not a fourth advisor
 
 The advisors field holds one to three seats that each speak, in order, every
@@ -127,7 +138,7 @@ The cost consequence follows from that: an advisor is called once per round,
 whereas the arbiter is called only when you ask — but with the longest prompt in
 the system. Putting a paid CLI in an advisor seat multiplies its cost by the
 number of rounds; putting it in the arbiter seat does not. The default in
-`run.sh` reflects this: three free advisors, and `claude` as an arbiter that is
+`run.sh` reflects this: two free advisors, and `claude` as an arbiter that is
 never called unless you add `--arbitrate`.
 
 ## Running it
@@ -233,6 +244,7 @@ council 驅動**你自己安裝並登入的官方 CLI**（`claude`、`codex`、`
 
 ### 換模型／調整發言順序
 
+顧問 1～3 席，加上恰好一個仲裁者，總席次 2～4。
 **席次不是寫死的。** web UI 的「顧問」欄位一行一席，**由上到下就是發言順序**；
 命令列則是 `--advisor` 參數出現的順序（見 `run.sh` 裡的 `ADVISORS` 陣列）。
 
@@ -240,9 +252,8 @@ council 驅動**你自己安裝並登入的官方 CLI**（`claude`、`codex`、`
 可以直接貼進「顧問」欄位的全免費配置：
 
 ```
-opencode:opencode/deepseek-v4-flash-free
 opencode:opencode/nemotron-3-ultra-free
-opencode:opencode/ling-3.0-flash-free
+opencode:opencode/laguna-s-2.1-free
 ```
 
 #### 怎麼知道有哪些模型可以填
@@ -267,6 +278,14 @@ CLI，CLI 失敗，**那一席回報失敗，討論照樣繼續**，逐字稿上
 `（未回應：<錯誤>）`。所以看到某一席一直沒有內容，先回來對一下這一節，
 不要先怪模型壞掉。
 
+#### 免費模型會消失，這是常態
+
+免費模型清單**隨時會變**：模型下架、改名、或你的帳號對某個模型沒有授權而回 401。
+council 不追蹤這件事、也追蹤不了——它沒有模型清單。因此**選席次前請自己查一次**
+（`opencode models`），README 裡列的任何模型名都只是**寫作當下**的例子。
+一席壞掉不會拖垮整輪：其餘席次照常發言、仲裁照常可用，而且從 038 起
+**壞掉的席次不會再擋住收斂**，失敗次數會顯示在用量面板上。
+
 #### 仲裁者欄位不是第四位顧問
 
 「顧問」欄位放 1～3 席，**每一輪都會依序各發言一次**。仲裁者是**不參與輪替**的單獨
@@ -275,7 +294,7 @@ CLI，CLI 失敗，**那一席回報失敗，討論照樣繼續**，逐字稿上
 
 額度的後果直接由此而來：**顧問席次是「每輪 × 每席」各一次呼叫，仲裁者是「你按幾次
 就幾次」，但每次都帶著全場最長的 prompt。** 所以把付費 CLI 放進顧問席，成本會隨輪數
-倍增；放在仲裁者席則不會。`run.sh` 的預設配置就是照這個道理設的——三席免費顧問，
+倍增；放在仲裁者席則不會。`run.sh` 的預設配置就是照這個道理設的——兩席免費顧問，
 仲裁者是 `claude` 但**刻意沒加 `--arbitrate`**，不主動呼叫。
 
 ## 怎麼跑
