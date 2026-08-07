@@ -161,6 +161,44 @@
   藏起 `#stopped-view` ⇒ 按上一頁會讓兩個畫面疊在一起。在源頭擋（頁面已是終態、不准
   再切換）比在每個切換點各補一行可靠——後者將來多一個切換點就會再漏一次。
 
+### 5.1 背景圖（工作包 036）
+
+- 🔴 **圖是內嵌的 data URI，不是一條路由。** 開路由要動 `src/server.py`，而那是請求守門
+  所在的檔案——**為一張裝飾圖去動它不划算**。內嵌的代價只是 71 KB base64，`ui.py` 讀檔
+  的方式一個字都不用改。**不要「順手改良」成路由版。**
+- 🔴 **CSP 是 `img-src data:`，不是 `img-src 'self'`。** 前者更嚴：`data:` URI 根本
+  發不出網路請求，所以它連當外洩通道的資格都沒有。**不要因為「'self' 看起來比較正規」
+  而改過去。**
+- 🔴 **`--panel`／`--panel-2`／`--panel-3` 是 `rgba()`，那是功能不是風格。** 三個色票的
+  RGB 與原本的 hex **完全相同**（`#17181A` ＝ 23,24,26），只多了 alpha。面板一旦改回
+  不透明，背景圖就只剩 16px 的縫隙看得到 ⇒ **這個功能等於做掉，而且沒有任何測試會紅**。
+  把它們「整理」回 hex 是最容易發生的那種破壞。
+- **`background-attachment: fixed` 是刻意的**：捲動時背景不動，圖才像襯底而不是內容。
+- **`test_no_external_resources` 收窄而非刪除。** 它守的是「頁面不引用 CSP 會靜默擋掉的
+  資源」——被擋掉的後果是畫面留白，**而那件事在 Python 測試裡看不出來**。所以它現在要求
+  `url(` 恰好一次且必須是 data: URI。**要再加第二個資源，先想清楚它是不是真的必要**，
+  這條紅線不是為了刁難，是因為它擋的失敗模式不會自己現形。
+- **`test_background_data_uri_decodes_to_a_jpeg` 存在的理由：沒有人會用眼睛看那 71 KB。**
+  blob 截斷的症狀只是背景不見，不會有任何其他測試翻紅。它在 036 的審查過程中就抓到一次
+  真實截斷（主對話的突變測試逾時被砍，留下少 5000 字元的檔案）。
+
+#### 素材怎麼來的（要重做才需要看）
+
+來源是 Frank 提供的 PNG（1536×1024，未版控）。**淡化是靠壓縮前的影像處理做掉的，不是靠
+CSS 疊一層**——這讓 2.5 MB 變成 54 KB：壓暗、降飽和、微模糊之後 JPEG 沒有細節要花位元。
+
+```python
+o = im.resize((1280, 853), Image.LANCZOS)
+o = ImageEnhance.Color(o).enhance(.55)        # 降飽和
+o = ImageEnhance.Brightness(o).enhance(.30)   # 壓暗
+o = o.filter(ImageFilter.GaussianBlur(1.4))
+o.save(out, "JPEG", quality=72, optimize=True, progressive=True)
+```
+
+產物 sha256 `816b5ec84525dace8bc9b31fc116e91a3f4e2d3d1cef1096ba3fdf5dde7a443a`（56,143 bytes），
+與 `index.html` 內嵌 blob 解碼後**位元組相同**（審查時實測）。
+⚠️ **淡化程度是 Frank 從三個變體裡挑的**，改參數等於改一個他核可過的東西。
+
 ## 6. 逐字稿匯出（`GET /api/discussions/<id>/export.md`）
 
 - 🔴 **仲裁區塊不准碰 `stance`／`more`／`violation`**（仲裁 record 只有八個鍵）。
