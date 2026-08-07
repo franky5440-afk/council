@@ -9,6 +9,7 @@ set -euo pipefail
 
 # 顧問席次，依序發言。格式 <cli>[:<模型>]。
 ADVISORS=(
+    "opencode:opencode/deepseek-v4-flash-free"
     "opencode:opencode/nemotron-3-ultra-free"
     "opencode:opencode/laguna-s-2.1-free"
 )

@@ -88,6 +88,7 @@ default. A complete, all-free configuration you can paste into the advisors
 field:
 
 ```
+opencode:opencode/deepseek-v4-flash-free
 opencode:opencode/nemotron-3-ultra-free
 opencode:opencode/laguna-s-2.1-free
 ```
@@ -138,7 +139,7 @@ The cost consequence follows from that: an advisor is called once per round,
 whereas the arbiter is called only when you ask — but with the longest prompt in
 the system. Putting a paid CLI in an advisor seat multiplies its cost by the
 number of rounds; putting it in the arbiter seat does not. The default in
-`run.sh` reflects this: two free advisors, and `claude` as an arbiter that is
+`run.sh` reflects this: three free advisors, and `claude` as an arbiter that is
 never called unless you add `--arbitrate`.
 
 ## Running it
@@ -252,6 +253,7 @@ council 驅動**你自己安裝並登入的官方 CLI**（`claude`、`codex`、`
 可以直接貼進「顧問」欄位的全免費配置：
 
 ```
+opencode:opencode/deepseek-v4-flash-free
 opencode:opencode/nemotron-3-ultra-free
 opencode:opencode/laguna-s-2.1-free
 ```
@@ -294,7 +296,7 @@ council 不追蹤這件事、也追蹤不了——它沒有模型清單。因此
 
 額度的後果直接由此而來：**顧問席次是「每輪 × 每席」各一次呼叫，仲裁者是「你按幾次
 就幾次」，但每次都帶著全場最長的 prompt。** 所以把付費 CLI 放進顧問席，成本會隨輪數
-倍增；放在仲裁者席則不會。`run.sh` 的預設配置就是照這個道理設的——兩席免費顧問，
+倍增；放在仲裁者席則不會。`run.sh` 的預設配置就是照這個道理設的——三席免費顧問，
 仲裁者是 `claude` 但**刻意沒加 `--arbitrate`**，不主動呼叫。
 
 ## 怎麼跑
