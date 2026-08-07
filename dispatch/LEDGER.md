@@ -554,3 +554,17 @@
   - ` M tests/test_ui.py`
   - `?? dispatch/packages/037c-usage-total-is-not-a-total.md`
   - `?? tests/test_contract_037c.py`
+
+## 2026-08-08 00:46 · 038-failed-seat-must-not-block-convergence.md
+
+- 模式：新開
+- session：`ses_022e128b1ffeJnSb7TDD8GHo1K`
+- 派工前 HEAD：`1f0f1cedb0218b9a60d7a2addfc2f05bcd457e84`（工作區未提交項目 0 個）
+- opencode 退出碼：0
+- 派工後工作區變更：
+  - ` M README.md`
+  - ` M run.sh`
+  - ` M src/engine/state.py`
+  - ` M src/static/index.html`
+  - ` M tests/test_engine_state.py`
+  - `?? tests/test_contract_038.py`
