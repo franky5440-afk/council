@@ -180,6 +180,28 @@ costs money should be what you asked for. A running server cannot be switched
 between the two modes — stop it and start a new one. Discussions live in memory
 only, so restarting discards them; export anything you want to keep first.
 
+### Double-clicking it on macOS
+
+`Council.command` starts the server and opens the browser, so it can be launched
+from Finder without a terminal. ⚠️ **It runs `./start.sh`, which is `--live`** —
+clicking it spends quota. That is the point of a shortcut: it lands you in a
+usable state. If you want the free mode, run `./start.sh --dry` yourself.
+
+It deliberately opens a Terminal window rather than being an `.app`. That window
+is the only place errors are visible, and the only place Ctrl-C exists — a server
+launched with no terminal cannot be stopped from the keyboard.
+
+Two things it handles for you: Finder starts a process in your home directory, so
+the script locates the project from its own path rather than the current one; and
+Terminal runs a `.command` through your login shell, so the CLIs on `PATH` are
+found (Homebrew's prefixes are added as a fallback for a profile that sets none).
+
+It still cannot fix the prerequisites. **The `python3` it finds must be 3.10 or
+newer** — see *Platform notes*. And if you downloaded a ZIP of this repository
+rather than cloning it, macOS marks the file as quarantined and refuses to open
+it; right-click → *Open* once to allow it. Files from `git clone` are not
+quarantined.
+
 ## Development
 
 Implementation is dispatched to a local builder agent; `dispatch/` holds every
@@ -328,6 +350,23 @@ python3 src/serve.py --live   # 真實呼叫——會消耗你的訂閱額度
 `--live` 之所以是 opt-in，理由和「一輪結束後永不自動進入下一輪」是同一個：
 **會花錢的事應該是你主動要求的。** 已經在跑的伺服器沒辦法切換模式，要換就關掉重開。
 ⚠️ 討論只活在記憶體裡，重開就會全部消失——**想留的內容請先匯出。**
+
+### 在 macOS 上雙擊啟動
+
+`Council.command` 會起伺服器並開瀏覽器，不用開終端機也能從 Finder 啟動。
+⚠️ **它跑的是 `./start.sh`，也就是 `--live`**——點下去就會花額度。捷徑的意義正是
+如此：點完就是可用狀態。想要不花錢的模式，請自己跑 `./start.sh --dry`。
+
+它刻意開出一個 Terminal 視窗，而不是做成 `.app`。那個視窗是**錯誤訊息唯一看得到的
+地方**，也是**唯一按得到 Ctrl-C 的地方**——沒有終端機的伺服器，鍵盤關不掉。
+
+它幫你處理掉兩件事：Finder 啟動的程式 cwd 是家目錄，所以腳本是**以自己的位置**定位
+專案，不是用當下的工作目錄；而 Terminal 是透過**登入 shell** 執行 `.command`，所以
+你 `PATH` 上的 CLI 找得到（另外補上 Homebrew 的路徑，是為了 profile 沒設的情況）。
+
+但前提條件它救不了。**它找到的 `python3` 必須是 3.10 以上**——見〈平台注意事項〉。
+另外，如果你是從網頁下載本專案的 ZIP 而不是 `git clone`，macOS 會把檔案標記為隔離
+狀態而拒絕開啟，請右鍵 →〈打開〉放行一次。`git clone` 下來的檔案不會被隔離。
 
 ## 開發方式
 
